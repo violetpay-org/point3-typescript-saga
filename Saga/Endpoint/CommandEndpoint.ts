@@ -2,7 +2,7 @@ import { ChannelName } from "./Channel";
 
 
 export abstract class AbstractSagaMessage {
-    protected readonly sagaId: string;
+    protected sagaId: string;
     
     public getSagaId(): string {
         return this.sagaId;
@@ -10,7 +10,7 @@ export abstract class AbstractSagaMessage {
 }
 
 export abstract class AbstractSagaMessageWithOrigin extends AbstractSagaMessage {
-    protected readonly origin: string;
+    protected origin: string;
     
     public getOrigin(): string {
         return this.origin;

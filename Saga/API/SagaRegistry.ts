@@ -11,9 +11,9 @@ interface SagaNameAndIdConvention {
     getSagaNameFromId(sagaId: string): string;
 }
 
-export abstract class AbstractSaga<Tx extends TxContext, A extends saga.SagaCreationArguments, I extends saga.SagaInstance> {
+export abstract class AbstractSaga<Tx extends TxContext, A extends saga.SagaCreationArguments, I extends saga.SagaSession> {
     abstract getDefinition(): sagaDefinition.SagaDefinition<I, Tx>;
-    abstract getSagaRepository(): sagaRepository.SagaRepository<Tx>;
+    abstract getSagaRepository(): sagaRepository.SagaSessionRepository<Tx>;
     abstract getName(): string;
     protected sagaNameIdConvention: Constructor<SagaNameAndIdConvention>;
     
@@ -22,18 +22,18 @@ export abstract class AbstractSaga<Tx extends TxContext, A extends saga.SagaCrea
         return this.getName() === sagaName;
     }
 
-    public abstract createSaga(arg: A): Promise<saga.SagaInstance>
+    public abstract createSaga(arg: A): Promise<saga.SagaSession>
 }
 
 export class SagaRegistry<Tx extends TxContext> {
-    protected sagas: Array<AbstractSaga<Tx, saga.SagaCreationArguments, saga.SagaInstance>> = [];
+    protected sagas: Array<AbstractSaga<Tx, saga.SagaCreationArguments, saga.SagaSession>> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
 
     constructor(orchestrator: SagaOrchestrator<Tx>) {
         this.orchestrator = orchestrator;
     }
 
-    public registerSaga(saga: AbstractSaga<Tx, saga.SagaCreationArguments, saga.SagaInstance>) {
+    public registerSaga(saga: AbstractSaga<Tx, saga.SagaCreationArguments, saga.SagaSession>) {
         this.sagas.push(saga);
     }
 
@@ -49,7 +49,7 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public async startSaga<
         A extends saga.SagaCreationArguments, 
-        I extends saga.SagaInstance, 
+        I extends saga.SagaSession, 
         S extends AbstractSaga<Tx, A, I>
     >(
         sagaClass: Constructor<S>,
@@ -58,11 +58,7 @@ export class SagaRegistry<Tx extends TxContext> {
     ) {
         const saga = this.sagas.find(saga => saga.getName() === sagaName);
 
-        if (!saga) {
-            throw ErrSagaNotFound
-        }
-
-        if (!(saga instanceof sagaClass)) {
+        if (!saga || !(saga instanceof sagaClass)) {
             throw ErrSagaNotFound
         }
 

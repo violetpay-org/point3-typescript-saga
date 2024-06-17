@@ -8,9 +8,9 @@ import { saga, step, sagaDefinition } from "../Saga";
 export abstract class SagaOrchestrator<Tx extends TxContext> {
     private unitOfWorkFactory: UnitOfWorkFactory<Tx>;
 
-    public async startSaga<A extends saga.SagaCreationArguments, I extends saga.SagaInstance>(saga: AbstractSaga<Tx, A, I>, sagaArg: A) {
+    public async startSaga<A extends saga.SagaCreationArguments, I extends saga.SagaSession>(saga: AbstractSaga<Tx, A, I>, sagaArg: A) {
         const unitOfWork = this.unitOfWorkFactory();
-        const sagaInstance = await saga.createSaga(sagaArg);
+        const sagaSessionSagaSession = await saga.createSaga(sagaArg);
         const sagaDefinition = saga.getDefinition();
         const firstStep = sagaDefinition.getFirstStep();
 
@@ -18,17 +18,17 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
             throw ErrStepNotFound;
         }
 
-        sagaInstance.updateCurrentStep(firstStep.getStepName());
-        sagaInstance.setForwardState();
+        sagaSessionSagaSession.updateCurrentStep(firstStep.getStepName());
+        sagaSessionSagaSession.setForwardState();
 
-        const sagaSaver = saga.getSagaRepository().saveTx(sagaInstance);
+        const sagaSaver = saga.getSagaRepository().saveTx(sagaSessionSagaSession);
         unitOfWork.addToWork(sagaSaver);
 
         if (firstStep.isInvocable()) {
-            await this.invokeStep(sagaInstance, firstStep, unitOfWork);
+            await this.invokeStep(sagaSessionSagaSession, firstStep, unitOfWork);
         } else {
             await this.stepForwardAndInvoke(
-                sagaInstance,
+                sagaSessionSagaSession,
                 firstStep,
                 sagaDefinition,
                 unitOfWork
@@ -39,15 +39,15 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         return;
     }
 
-    public async orchestrate<I extends saga.SagaInstance>(
+    public async orchestrate<I extends saga.SagaSession>(
         saga: AbstractSaga<Tx, saga.SagaCreationArguments, I>, 
         message: endpoint.AbstractSagaMessageWithOrigin
     ) {
         const sagaDefinition = saga.getDefinition();
-        const sagaInstance = await saga
+        const sagaSessionSagaSession = await saga
             .getSagaRepository()
             .load(message.getSagaId());
-        const currentStepName = sagaInstance.getCurrentStepName();
+        const currentStepName = sagaSessionSagaSession.getCurrentStepName();
         const currentStep = sagaDefinition.getStep(currentStepName);
 
         if (!currentStep) {
@@ -56,17 +56,17 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
 
         const unitOfWork = this.unitOfWorkFactory();
 
-        if (sagaInstance.isInForwardDirection()) {
+        if (sagaSessionSagaSession.isInForwardDirection()) {
             await this.invocationResponseHandler(
-                sagaInstance,
+                sagaSessionSagaSession,
                 message,
                 currentStep,
                 sagaDefinition,
                 unitOfWork
             );
-        } else if (sagaInstance.isCompensating()) {
+        } else if (sagaSessionSagaSession.isCompensating()) {
             await this.compensationResponseHandler(
-                sagaInstance,
+                sagaSessionSagaSession,
                 message,
                 currentStep,
                 sagaDefinition,
@@ -74,51 +74,51 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
             );
         }
 
-        const sagaSaver = saga.getSagaRepository().saveTx(sagaInstance);
+        const sagaSaver = saga.getSagaRepository().saveTx(sagaSessionSagaSession);
         unitOfWork.addToWork(sagaSaver);
         await unitOfWork.Commit();
     }
 
     private async invokeStep(
-        sagaInstance: saga.SagaInstance,
+        sagaSessionSagaSession: saga.SagaSession,
         currentStep: step.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const command = await currentStep.invocationAction.executeInvocation();
         unitOfWork.addToWork(command);
-        sagaInstance.setPendingState();
+        sagaSessionSagaSession.setPendingState();
     }
 
     private async compensateStep(
-        sagaInstance: saga.SagaInstance,
+        sagaSessionSagaSession: saga.SagaSession,
         currentStep: step.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const command = await currentStep.compensationAction.executeCompensation();
         unitOfWork.addToWork(command);
-        sagaInstance.setPendingState();
+        sagaSessionSagaSession.setPendingState();
     }
 
-    private async compensationResponseHandler<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async compensationResponseHandler<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         message: endpoint.AbstractSagaMessageWithOrigin,
         sagaStep: step.Step<Tx>,
         sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const compensationAction = sagaStep.compensationAction;
-        sagaInstance.unsetPendingState();
+        sagaSessionSagaSession.unsetPendingState();
 
         if (this.isFailureCompensationResponse(message, compensationAction)) {
             await this.retryCompensation(
-                sagaInstance,
+                sagaSessionSagaSession,
                 sagaStep,
                 unitOfWork
             );
             return;
         }
         await this.stepBackwardAndStartCompensation(
-            sagaInstance,
+            sagaSessionSagaSession,
             sagaStep,
             sagaDefinition,
             unitOfWork
@@ -126,27 +126,27 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         return;
     }
 
-    private async invocationResponseHandler<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async invocationResponseHandler<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         message: endpoint.AbstractSagaMessageWithOrigin,
         sagaStep: step.Step<Tx>,
         sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const invocationAction = sagaStep.invocationAction;
-        sagaInstance.unsetPendingState();
+        sagaSessionSagaSession.unsetPendingState();
 
         if (this.isFailureInvocationResponse(message, invocationAction)) {
             if (sagaStep.mustComplete()) {
                 await this.retryInvocation(
-                    sagaInstance,
+                    sagaSessionSagaSession,
                     sagaStep,
                     unitOfWork
                 );
                 return;
             }
             await this.stepBackwardAndStartCompensation(
-                sagaInstance,
+                sagaSessionSagaSession,
                 sagaStep,
                 sagaDefinition,
                 unitOfWork
@@ -163,38 +163,38 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         }
 
         await this.stepForwardAndInvoke(
-            sagaInstance,
+            sagaSessionSagaSession,
             sagaStep,
             sagaDefinition,
             unitOfWork
         );
     }
 
-    private async retryInvocation<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async retryInvocation<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) { 
         if (!currentStep.mustComplete()) {
             return;
         }
-        sagaInstance.setMustCompleteState();
-        await this.invokeStep(sagaInstance, currentStep, unitOfWork);
+        sagaSessionSagaSession.setMustCompleteState();
+        await this.invokeStep(sagaSessionSagaSession, currentStep, unitOfWork);
         return;
     }
 
-    private async retryCompensation<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async retryCompensation<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
-        sagaInstance.setCompensationState();
-        await this.compensateStep(sagaInstance, currentStep, unitOfWork);
+        sagaSessionSagaSession.setCompensationState();
+        await this.compensateStep(sagaSessionSagaSession, currentStep, unitOfWork);
         return;
     }
 
-    private async stepForwardAndInvoke<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async stepForwardAndInvoke<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
         sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
         unitOfWork: UnitOfWork<Tx>
@@ -203,28 +203,28 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         const nextStep = sagaDefinition.getStepAfter(currentStepName);
 
         if (!nextStep) {
-            sagaInstance.setCompletionState();
+            sagaSessionSagaSession.setCompletionState();
             return;
         }
 
-        sagaInstance.updateCurrentStep(nextStep.getStepName());
+        sagaSessionSagaSession.updateCurrentStep(nextStep.getStepName());
 
         if (nextStep.isInvocable()) {
-            await this.invokeStep(sagaInstance, nextStep, unitOfWork);
+            await this.invokeStep(sagaSessionSagaSession, nextStep, unitOfWork);
             return;
         }
 
         // Navigate untill we find an invocable step while updating the current step.
         await this.stepForwardAndInvoke(
-            sagaInstance,
+            sagaSessionSagaSession,
             nextStep,
             sagaDefinition,
             unitOfWork
         );
     }
 
-    private async stepBackwardAndStartCompensation<I extends saga.SagaInstance>(
-        sagaInstance: I,
+    private async stepBackwardAndStartCompensation<I extends saga.SagaSession>(
+        sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
         sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
         unitOfWork: UnitOfWork<Tx>
@@ -233,22 +233,22 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         const previousStep = sagaDefinition.getStepBefore(currentStepName);
 
         if (!previousStep) {
-            sagaInstance.setFailureState();
+            sagaSessionSagaSession.setFailureState();
             return;
         }
 
-        sagaInstance.updateCurrentStep(previousStep.getStepName());
+        sagaSessionSagaSession.updateCurrentStep(previousStep.getStepName());
 
         if (previousStep.isCompensatable()) {
-            sagaInstance.setCompensationState();
+            sagaSessionSagaSession.setCompensationState();
 
-            this.compensateStep(sagaInstance, previousStep, unitOfWork);
+            this.compensateStep(sagaSessionSagaSession, previousStep, unitOfWork);
             return;
         }
 
         // Navigate untill we find a compensatable step while updating the current step.
         await this.stepBackwardAndStartCompensation(
-            sagaInstance,
+            sagaSessionSagaSession,
             previousStep,
             sagaDefinition,
             unitOfWork

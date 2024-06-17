@@ -1,7 +1,7 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-import { SagaInstance } from "./Saga";
+import { SagaSession } from "./Saga";
 
-export interface SagaRepository<Tx extends TxContext> {
-    saveTx(saga: SagaInstance): Executable<Tx>;
-    load(sagaId: string): Promise<SagaInstance>;
+export interface SagaSessionRepository<Tx extends TxContext> {
+    saveTx(sagaSession: SagaSession): Executable<Tx>;
+    load(sagaSessionId: string): Promise<SagaSession>;
 }

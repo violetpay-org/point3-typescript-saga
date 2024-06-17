@@ -84,7 +84,7 @@ abstract class SagaState {
 
 export interface SagaCreationArguments {}
 
-export abstract class SagaInstance extends SagaState {
+export abstract class SagaSession extends SagaState {
     private _sagaId: string;
     private _currentStep: string;
 

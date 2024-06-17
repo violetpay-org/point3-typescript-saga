@@ -3,7 +3,7 @@ import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/mai
 import { saga, sagaDefinition, step, stepBuilder } from "../Saga";
 import { endpoint } from "../Endpoint";
 
-export class SagaBuilder<S extends saga.SagaInstance, Tx extends TxContext> {
+export class SagaBuilder<S extends saga.SagaSession, Tx extends TxContext> {
     private _saga: sagaDefinition.SagaDefinition<S, Tx>;
     protected _sagaName: string;
 
@@ -33,7 +33,7 @@ export class SagaBuilder<S extends saga.SagaInstance, Tx extends TxContext> {
     }
 }
 
-export class StepBuilder<S extends saga.SagaInstance, Tx extends TxContext> extends SagaBuilder<S, Tx> implements stepBuilder.IStepBuilder<S, Tx> {
+export class StepBuilder<S extends saga.SagaSession, Tx extends TxContext> extends SagaBuilder<S, Tx> implements stepBuilder.IStepBuilder<S, Tx> {
     protected _currentStep: step.Step<Tx>;
 
     public constructor(sagaName: string) {
@@ -60,7 +60,7 @@ export class StepBuilder<S extends saga.SagaInstance, Tx extends TxContext> exte
     }
 }
 
-class InvokableStepBuilder<S extends saga.SagaInstance, Tx extends TxContext> extends 
+class InvokableStepBuilder<S extends saga.SagaSession, Tx extends TxContext> extends 
     StepBuilder<S, Tx> implements 
     stepBuilder.IInvokableStepBuilder<S, Tx>,
     stepBuilder.MustCompleteStepBuilder<S, Tx>, 
