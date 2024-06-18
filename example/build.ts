@@ -1,9 +1,46 @@
 import * as point3Saga from "../Saga";
+import { ChannelName } from "../Saga/Endpoint/Channel";
 import { TxContext } from "../UnitOfWork/main";
 
+class AnotherSagaSessionArguments implements point3Saga.core.saga.SagaSessionArguments {
+    private readonly _arg1: string = "arg1";
+}
+
+
+class ExampleSagaSessionArguments implements point3Saga.core.saga.SagaSessionArguments {
+    private readonly _arg1: string = "arg2";
+}
 class ExampleSagaSession extends point3Saga.core.saga.SagaSession {
-    constructor() {
+    constructor(arg: ExampleSagaSessionArguments) {
         super();
+    }
+
+    public static create(arg: ExampleSagaSessionArguments): ExampleSagaSession {
+        return new ExampleSagaSession(arg);
+    }
+}
+
+class ExampleSaga extends point3Saga.api.registry.AbstractSaga<
+    TxContext,
+    ExampleSagaSessionArguments,
+    ExampleSagaSession
+> {
+    getDefinition(): point3Saga.core.sagaDefinition.SagaDefinition<TxContext> {
+        throw new Error("Method not implemented.");
+    }
+    getSagaRepository(): point3Saga.core.sagaRepository.SagaSessionRepository<TxContext, ExampleSagaSession> {
+        throw new Error("Method not implemented.");
+    }
+    getName(): string {
+        return "ExampleSaga";
+    }
+    createSession(arg: ExampleSagaSessionArguments): Promise<ExampleSagaSession> {
+        const sagaSession = new ExampleSagaSession(arg);
+        return Promise.resolve(sagaSession);
+    }
+    
+    static create(): ExampleSaga {
+        return new ExampleSaga();
     }
 }
 
@@ -12,40 +49,74 @@ enum ExampleSagaResponseStatus {
     Failure = "Failure"
 }
 
-class ExampleRequestCommand extends point3Saga.endpoint.endpoint.Command {
-    private constructor() {
-        super();
+const exampleChannels = {
+    REQUEST: "ExampleSagaReqChan" as ChannelName,
+    SUCCESS_RES: "ExampleSagaSuccessChan" as ChannelName,
+    FAILURE_RES: "ExampleSagaFailureChan" as ChannelName
+};
+
+class ExampleRequestCommand implements point3Saga.endpoint.endpoint.Command {
+    private sagaId: string;
+    
+    constructor() {
         this.sagaId = "ExampleSaga";
     }
-
-    public static create(): ExampleRequestCommand {
-        return new ExampleRequestCommand;
+    
+    public getSagaId(): string {
+        return this.sagaId;
     }
 }
 
-class ExampleSuccessResponse extends point3Saga.endpoint.endpoint.Command {
+class ExampleSuccessResponse implements point3Saga.endpoint.endpoint.Command {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Success;
-
-    private constructor() {
-        super();
+    private sagaId: string;
+    
+    constructor() {
         this.sagaId = "ExampleSaga";
     }
-
-    public static create(): ExampleSuccessResponse {
-        return new ExampleSuccessResponse();
+    
+    public getSagaId(): string {
+        return this.sagaId;
     }
 }
 
-class ExampleFailureResponse extends point3Saga.endpoint.endpoint.Command {
+class ExampleFailureResponse implements point3Saga.endpoint.endpoint.Command {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Failure;
-
-    private constructor() {
-        super();
+    private sagaId: string;
+    
+    constructor() {
         this.sagaId = "ExampleSaga";
     }
+    
+    public getSagaId(): string {
+        return this.sagaId;
+    }
+}
 
-    public static create(): ExampleFailureResponse {
-        return new ExampleFailureResponse();
+class ExampleRequestChannel extends point3Saga.endpoint.channel.Channel<ExampleRequestCommand> {
+    send(command: ExampleRequestCommand): void {
+        throw new Error("Method not implemented.");
+    }
+    getChannelName(): string {
+        return exampleChannels.REQUEST;
+    }
+}
+
+class ExampleSuccessResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleSuccessResponse> {
+    send(command: ExampleSuccessResponse): void {
+        throw new Error("Method not implemented.");
+    }
+    getChannelName(): string {
+        return exampleChannels.SUCCESS_RES;
+    }
+}
+
+class ExampleFailureResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleFailureResponse> {
+    send(command: ExampleFailureResponse): void {
+        throw new Error("Method not implemented.");
+    }
+    getChannelName(): string {
+        return exampleChannels.FAILURE_RES;
     }
 }
 
@@ -59,21 +130,32 @@ class ExampleEndpoint extends point3Saga.endpoint.endpoint.CommandEndpoint<
             "ExampleSagaReqChan",
             "ExampleSagaSuccessChan",
             "ExampleSagaFailureChan",
-            ExampleRequestCommand.create,
-            ExampleSuccessResponse.create,
-            ExampleFailureResponse.create,
+            ExampleRequestCommand,
+            ExampleSuccessResponse,
+            ExampleFailureResponse,
         );
     }
 }
 
-function build() {
-    const builder = new point3Saga.api.sagaBuilder.StepBuilder<ExampleSagaSession, TxContext>("ExampleSaga");
+async function build() {
+    var registry: point3Saga.api.registry.SagaRegistry<TxContext>;
+    const builder = new point3Saga.api.sagaBuilder.StepBuilder<TxContext>("ExampleSaga");
 
-    builder
+    const sagaDefinition = builder
         .step("Step1")
         .invoke(new ExampleEndpoint())
         .withCompensation(new ExampleEndpoint())
-        .step("Step2")
-        
+        .build();
 
+    registry.registerSaga(new ExampleSaga());
+
+    await registry.consumeEvent(
+        new ExampleRequestChannel().parseMessageWithOrigin(new ExampleRequestCommand)
+    );
+
+    await registry.startSaga(
+        "ExampleSaga", 
+        new ExampleSagaSessionArguments(),
+        ExampleSaga
+    );
 }

@@ -4,13 +4,18 @@ import { ErrChannelNotFound, ErrStepNotFound } from "../Errors";
 
 import { endpoint } from "../Endpoint";
 import { saga, step, sagaDefinition } from "../Saga";  
+import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
+import { ChannelName } from "../Endpoint/Channel";
 
 export abstract class SagaOrchestrator<Tx extends TxContext> {
     private unitOfWorkFactory: UnitOfWorkFactory<Tx>;
 
-    public async startSaga<A extends saga.SagaCreationArguments, I extends saga.SagaSession>(saga: AbstractSaga<Tx, A, I>, sagaArg: A) {
+    public async startSaga<A extends saga.SagaSessionArguments, I extends saga.SagaSession>(
+        sagaSessionArg: A,
+        saga: AbstractSaga<Tx, A, I>, 
+    ) {
         const unitOfWork = this.unitOfWorkFactory();
-        const sagaSessionSagaSession = await saga.createSaga(sagaArg);
+        const sagaSessionSagaSession = await saga.createSession(sagaSessionArg);
         const sagaDefinition = saga.getDefinition();
         const firstStep = sagaDefinition.getFirstStep();
 
@@ -39,10 +44,12 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         return;
     }
 
-    public async orchestrate<I extends saga.SagaSession>(
-        saga: AbstractSaga<Tx, saga.SagaCreationArguments, I>, 
-        message: endpoint.AbstractSagaMessageWithOrigin
+    public async orchestrate(
+        saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>, 
+        messageWithOrigin: endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>
     ) {
+        const message = messageWithOrigin.getSagaMessage();
+        const originChan = messageWithOrigin.getOrigin();
         const sagaDefinition = saga.getDefinition();
         const sagaSessionSagaSession = await saga
             .getSagaRepository()
@@ -59,6 +66,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         if (sagaSessionSagaSession.isInForwardDirection()) {
             await this.invocationResponseHandler(
                 sagaSessionSagaSession,
+                originChan,
                 message,
                 currentStep,
                 sagaDefinition,
@@ -67,6 +75,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         } else if (sagaSessionSagaSession.isCompensating()) {
             await this.compensationResponseHandler(
                 sagaSessionSagaSession,
+                originChan,
                 message,
                 currentStep,
                 sagaDefinition,
@@ -101,15 +110,16 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
 
     private async compensationResponseHandler<I extends saga.SagaSession>(
         sagaSessionSagaSession: I,
-        message: endpoint.AbstractSagaMessageWithOrigin,
+        originChan: ChannelName,
+        message: endpoint.AbstractSagaMessage,
         sagaStep: step.Step<Tx>,
-        sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
+        sagaDefinition: sagaDefinition.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const compensationAction = sagaStep.compensationAction;
         sagaSessionSagaSession.unsetPendingState();
 
-        if (this.isFailureCompensationResponse(message, compensationAction)) {
+        if (this.isFailureCompensationResponse(originChan, compensationAction)) {
             await this.retryCompensation(
                 sagaSessionSagaSession,
                 sagaStep,
@@ -128,15 +138,16 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
 
     private async invocationResponseHandler<I extends saga.SagaSession>(
         sagaSessionSagaSession: I,
-        message: endpoint.AbstractSagaMessageWithOrigin,
+        originChan: ChannelName,
+        message: endpoint.AbstractSagaMessage,
         sagaStep: step.Step<Tx>,
-        sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
+        sagaDefinition: sagaDefinition.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const invocationAction = sagaStep.invocationAction;
         sagaSessionSagaSession.unsetPendingState();
 
-        if (this.isFailureInvocationResponse(message, invocationAction)) {
+        if (this.isFailureInvocationResponse(originChan, invocationAction)) {
             if (sagaStep.mustComplete()) {
                 await this.retryInvocation(
                     sagaSessionSagaSession,
@@ -196,7 +207,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private async stepForwardAndInvoke<I extends saga.SagaSession>(
         sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
-        sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
+        sagaDefinition: sagaDefinition.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const currentStepName = currentStep.getStepName();
@@ -226,7 +237,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private async stepBackwardAndStartCompensation<I extends saga.SagaSession>(
         sagaSessionSagaSession: I,
         currentStep: step.Step<Tx>,
-        sagaDefinition: sagaDefinition.SagaDefinition<I, Tx>,
+        sagaDefinition: sagaDefinition.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const currentStepName = currentStep.getStepName();
@@ -256,10 +267,10 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     }
 
     private isFailureInvocationResponse(
-        message: endpoint.AbstractSagaMessageWithOrigin,
+        originChan: ChannelName,
         invocationAction: saga.AbstractInvocationSagaAction<Tx>
     ): boolean {
-        const originChannelName = message.getOrigin();
+        const originChannelName = originChan;
         const invocatedAt = invocationAction.invocationDestination;
 
         if (originChannelName == invocatedAt.getFailureResChannelName()) {
@@ -274,10 +285,10 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     }
 
     private isFailureCompensationResponse(
-        message: endpoint.AbstractSagaMessageWithOrigin,
+        originChan: ChannelName,
         compensationAction: saga.AbstractCompensationSagaAction<Tx>
     ): boolean {
-        const originChannelName = message.getOrigin();
+        const originChannelName = originChan;
         const compensatedAt = compensationAction.compensationDestination;
 
         if (originChannelName == compensatedAt.getFailureResChannelName()) {

@@ -1,30 +1,22 @@
 import { ChannelName } from "./Channel";
 
-
-export abstract class AbstractSagaMessage {
-    protected sagaId: string;
-    
-    public getSagaId(): string {
-        return this.sagaId;
-    }
+export interface AbstractSagaMessage {
+    getSagaId(): string
 }
 
-export abstract class AbstractSagaMessageWithOrigin extends AbstractSagaMessage {
-    protected origin: string;
-    
-    public getOrigin(): string {
-        return this.origin;
-    }
+export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
+    getOrigin(): ChannelName;
+    getSagaMessage(): M;
 }
 
-export abstract class Command extends AbstractSagaMessage {}
+export interface Command extends AbstractSagaMessage {}
 
-export type MessageConstructor<C extends AbstractSagaMessage> = () => C;
+export type MessageConstructor<C extends AbstractSagaMessage> = (() => C) | Constructor<C>;
 export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
 
 export abstract class CommandEndpoint<
-    ReqC extends Command, 
-    SuccessResC extends Command, 
+    ReqC extends Command,
+    SuccessResC extends Command,
     FailureResC extends Command
 > {
     private _reqChannelName: ChannelName;

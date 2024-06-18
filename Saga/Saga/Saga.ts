@@ -82,7 +82,7 @@ abstract class SagaState {
     }
 }
 
-export interface SagaCreationArguments {}
+export interface SagaSessionArguments {}
 
 export abstract class SagaSession extends SagaState {
     private _sagaId: string;

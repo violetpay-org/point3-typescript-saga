@@ -1,8 +1,7 @@
 import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-import { SagaInstance } from "./Saga";
 import { Step } from "./Step";
 
-export class SagaDefinition<S extends SagaInstance, Tx extends TxContext> {
+export class SagaDefinition<Tx extends TxContext> {
     name: string;
     steps: Step<Tx>[] = [];
 
