@@ -11,7 +11,7 @@ export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
 
 export interface Command extends AbstractSagaMessage {}
 
-export type MessageConstructor<C extends AbstractSagaMessage> = (() => C) | Constructor<C>;
+export type MessageConstructor<C extends AbstractSagaMessage> = Constructor<C>;
 export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
 
 export abstract class CommandEndpoint<

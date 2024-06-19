@@ -70,11 +70,11 @@ export class SagaRegistry<Tx extends TxContext> {
     >(
         sagaName: string,
         sessionArg: A,
-        sessionClass: Constructor<AbstractSaga<Tx, A, I>>,
+        sagaClass: Constructor<AbstractSaga<Tx, A, I>>,
     ) {
         const saga = this.sagas.find(saga => saga.getName() === sagaName);
 
-        if (!saga || !(saga instanceof sessionClass)) {
+        if (!saga || !(saga instanceof sagaClass)) {
             throw ErrSagaNotFound
         }
 

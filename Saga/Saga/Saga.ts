@@ -134,7 +134,7 @@ export abstract class AbstractInvocationSagaAction<Tx extends TxContext> {
     invocationDestination: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>;
 
     public async executeInvocation(): Promise<Executable<Tx>> {
-        const invocationCommand = this.invocationDestination.getCommandReqCtor()();
+        const invocationCommand = new (this.invocationDestination.getCommandReqCtor());
         return this.commandRepository.saveCommand(invocationCommand);
     }
 }
@@ -144,7 +144,7 @@ export abstract class AbstractCompensationSagaAction<Tx extends TxContext> {
     compensationDestination: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>;
 
     public async executeCompensation(): Promise<Executable<Tx>> {
-        const compensationCommand = this.compensationDestination.getCommandReqCtor()();
+        const compensationCommand = new (this.compensationDestination.getCommandReqCtor());
         return this.commandRepository.saveCommand(compensationCommand);
     }
 }
