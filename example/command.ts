@@ -10,8 +10,8 @@ enum ExampleSagaResponseStatus {
 export class ExampleRequestCommand implements point3Saga.endpoint.endpoint.Command {
     private sagaId: string;
     
-    constructor() {
-        this.sagaId = "ExampleSaga";
+    constructor(sagaId: string) {
+        this.sagaId = sagaId;
     }
     
     public getSagaId(): string {
@@ -23,8 +23,8 @@ export class ExampleSuccessResponse implements point3Saga.endpoint.endpoint.Comm
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Success;
     private sagaId: string;
     
-    constructor() {
-        this.sagaId = "ExampleSaga";
+    constructor(sagaId: string) {
+        this.sagaId = sagaId;
     }
     
     public getSagaId(): string {
@@ -36,8 +36,8 @@ export class ExampleFailureResponse implements point3Saga.endpoint.endpoint.Comm
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Failure;
     private sagaId: string;
     
-    constructor() {
-        this.sagaId = "ExampleSaga";
+    constructor(sagaId: string) {
+        this.sagaId = sagaId;
     }
     
     public getSagaId(): string {

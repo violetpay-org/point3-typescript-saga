@@ -1,51 +1,74 @@
 import * as point3Saga from "../Saga";
 import { TxContext } from "../UnitOfWork/main";
+import { ExampleRequestCommand, ExampleSuccessResponse } from "./command";
+import { ExampleEndpoint } from "./endpoint";
 
 import {
     ExampleSagaSessionArguments,
     ExampleSagaSession,
-    ExampleSagaSession2,
 } from "./sagaSession";
 
-export class ExampleSaga extends point3Saga.api.registry.AbstractSaga<
-    TxContext,
+export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.AbstractSaga<
+    T,
     ExampleSagaSessionArguments,
     ExampleSagaSession
 > {
-    protected sagaName: string = "ExampleSaga";
+    protected static sagaName: string = "ExampleSaga";
 
-    private sagaDefinition: point3Saga.core.sagaDefinition.SagaDefinition<TxContext>;
-    private sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<TxContext, ExampleSagaSession>;
+    private sagaDefinition: point3Saga.core.sagaDefinition.SagaDefinition<T>;
+    private sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession>;
+
+    // The following command repositories differs by the implementation of AbstractSaga subclass.
+    // This implementation only has two command repositories because saga schema of the concrete class
+    // only has one step.
+    private static stepOneInvocationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, TxContext>;
+    private static stepOneCompensationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, TxContext>;
     
-    private static applySagaSchemaTo(
-        sagaBuilder: point3Saga.api.sagaBuilder.StepBuilder<TxContext>,        
-    ): point3Saga.core.sagaDefinition.SagaDefinition<TxContext> {
-        throw new Error("Method not implemented.");
+    private static applySagaSchemaTo<T extends TxContext>(
+        sagaBuilder: point3Saga.api.sagaBuilder.StepBuilder<T>,        
+    ): point3Saga.core.sagaDefinition.SagaDefinition<T> {
+        return sagaBuilder
+            .step("Step1")
+            .invoke(new ExampleEndpoint(this.stepOneInvocationCommandRepository))
+            .withCompensation(new ExampleEndpoint(this.stepOneCompensationCommandRepository))
+            .build();
     }
     
     constructor(
-        builder: point3Saga.api.sagaBuilder.StepBuilder<TxContext>,
-        sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<TxContext, ExampleSagaSession>,
+        builder: point3Saga.api.sagaBuilder.StepBuilder<T>,
+        sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession>,
+        // Only for this specific implementation
+        stepOneInvocationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, T>,
+        stepOneCompensationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, T>,
     ) {
         super();
+        // Must called before applySagaSchemaTo
+        ExampleSaga.stepOneInvocationCommandRepository = stepOneInvocationCommandRepository;
+        ExampleSaga.stepOneCompensationCommandRepository = stepOneCompensationCommandRepository;
+
         this.sagaDefinition = ExampleSaga.applySagaSchemaTo(builder);
         this.sagaSessionRepository = sagaSessionRepository;
     }
 
-    getDefinition(): point3Saga.core.sagaDefinition.SagaDefinition<TxContext> {
+    static getName(): string {
+        return ExampleSaga.sagaName;
+    }
+
+    getDefinition(): point3Saga.core.sagaDefinition.SagaDefinition<T> {
         return this.sagaDefinition;
     }
 
-    getSagaRepository(): point3Saga.core.sagaRepository.SagaSessionRepository<TxContext, ExampleSagaSession> {
+    getSagaRepository(): point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession> {
         return this.sagaSessionRepository;
     }
 
     getName(): string {
-        return this.sagaName;
+        return ExampleSaga.sagaName;
     }
 
     createSession(arg: ExampleSagaSessionArguments): Promise<ExampleSagaSession> {
-        const sagaSession = new ExampleSagaSession(arg);
+        const newSessionId = this.makeSagaId();
+        const sagaSession = new ExampleSagaSession(newSessionId, arg);
         return Promise.resolve(sagaSession);
     }
 }

@@ -18,24 +18,12 @@ export class ExampleSagaSessionArguments implements point3Saga.core.saga.SagaSes
 }
 
 export class ExampleSagaSession extends point3Saga.core.saga.SagaSession {
-    constructor(arg: ExampleSagaSessionArguments) {
-        super();
+    constructor(sagaId: string, arg: ExampleSagaSessionArguments) {
+        super(sagaId);
     }
-
-    private _arg1: string;
-
-    public static create(arg: ExampleSagaSessionArguments): ExampleSagaSession {
-        return new ExampleSagaSession(arg);
-    }
-}
-
-export class ExampleSagaSession2 extends point3Saga.core.saga.SagaSession {
-    constructor(arg: ExampleSagaSessionArguments2) {
-        super();
-    }
-
-    public static create(arg: ExampleSagaSessionArguments2): ExampleSagaSession2 {
-        return new ExampleSagaSession2(arg);
+    
+    public static create(sagaId: string, arg: ExampleSagaSessionArguments): ExampleSagaSession {
+        return new ExampleSagaSession(sagaId, arg);
     }
 }
 
@@ -51,11 +39,13 @@ export class InMemoryExampleSagaSaver implements point3Saga.core.sagaRepository.
     saveTx(sagaSession: ExampleSagaSession): Executable<TxContext> {
         return async (tx: TxContext) => {
             this._sessions.set(sagaSession.getSagaId(), sagaSession);
+            console.log(`Saved session ${sagaSession.getSagaId()}`);
         };
     }
 
     load(sagaSessionId: string): Promise<ExampleSagaSession> {
         if (!this._sessions.has(sagaSessionId)) {
+            console.log(`Session ${sagaSessionId} not found`);
             return Promise.resolve(null);
         }
         return Promise.resolve(this._sessions.get(sagaSessionId));
