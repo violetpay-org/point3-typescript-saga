@@ -1,3 +1,4 @@
+import { saga } from ".";
 import { endpoint, channel, commandRepository } from "../Endpoint";
 import { Executable, TxContext, UnitOfWork } from "src/point3-typescript-saga/UnitOfWork/main";
 
@@ -88,6 +89,11 @@ export abstract class SagaSession extends SagaState {
     private _sagaId: string;
     private _currentStep: string;
 
+    constructor(sagaId: string) {
+        super();
+        this._sagaId = sagaId;
+    }
+
     public getCurrentStepName(): string {
         return this._currentStep;
     }
@@ -129,30 +135,52 @@ export abstract class SagaSession extends SagaState {
     }
 }
 
-export abstract class AbstractInvocationSagaAction<Tx extends TxContext> {
-    protected commandRepository: commandRepository.CommandRepository<endpoint.Command, Tx>;
-    invocationDestination: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>;
+export class InvocationSagaAction<
+    Tx extends TxContext,
+    InvocationCommand extends endpoint.Command
+> {
+    protected commandRepository: commandRepository.CommandRepository<InvocationCommand, Tx>;
+    invocationDestination: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>;
 
-    public async executeInvocation(): Promise<Executable<Tx>> {
-        const invocationCommand = new (this.invocationDestination.getCommandReqCtor());
+    constructor(
+        commandRepository: commandRepository.CommandRepository<InvocationCommand, Tx>,
+        endpoint: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>
+    ) {
+        this.commandRepository = commandRepository;
+        this.invocationDestination = endpoint;
+    }
+
+    public async executeInvocation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
+        const invocationCommand = new (this.invocationDestination.getCommandReqCtor())(sagaSession.getSagaId());
         return this.commandRepository.saveCommand(invocationCommand);
     }
 }
 
-export abstract class AbstractCompensationSagaAction<Tx extends TxContext> {
-    protected commandRepository: commandRepository.CommandRepository<endpoint.Command, Tx>;
-    compensationDestination: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>;
+export class CompensationSagaAction<
+    Tx extends TxContext,
+    CompensationCommand extends endpoint.Command
+> {
+    protected commandRepository: commandRepository.CommandRepository<CompensationCommand, Tx>;
+    compensationDestination: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>;
 
-    public async executeCompensation(): Promise<Executable<Tx>> {
-        const compensationCommand = new (this.compensationDestination.getCommandReqCtor());
+    constructor(
+        commandRepository: commandRepository.CommandRepository<CompensationCommand, Tx>,
+        endpoint: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>
+    ) {
+        this.commandRepository = commandRepository;
+        this.compensationDestination = endpoint;
+    }
+
+    public async executeCompensation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
+        const compensationCommand = new (this.compensationDestination.getCommandReqCtor())(sagaSession.getSagaId());
         return this.commandRepository.saveCommand(compensationCommand);
     }
 }
 
-export interface InvocationSagaActionFactory<Tx extends TxContext> {
-    (endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): AbstractInvocationSagaAction<Tx>;
-}
+// export interface InvocationSagaActionFactory<Tx extends TxContext, InvocationCommand extends endpoint.Command> {
+//     (endpoint: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>): AbstractInvocationSagaAction<Tx, InvocationCommand>;
+// }
 
-export interface CompensationSagaActionFactory<Tx extends TxContext> {
-    (endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): AbstractCompensationSagaAction<Tx>;
-}
+// export interface CompensationSagaActionFactory<Tx extends TxContext, CompensationCommand extends endpoint.Command> {
+//     (endpoint: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>): AbstractCompensationSagaAction<Tx, CompensationCommand>;
+// }

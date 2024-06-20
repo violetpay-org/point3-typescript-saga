@@ -1,5 +1,9 @@
 import { ChannelName } from "./Channel";
 
+import { Constructor } from "src/point3-typescript-saga/common/syntex";
+import { CommandRepository } from "./Command.repository";
+import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+
 export interface AbstractSagaMessage {
     getSagaId(): string
 }
@@ -11,7 +15,9 @@ export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
 
 export interface Command extends AbstractSagaMessage {}
 
-export type MessageConstructor<C extends AbstractSagaMessage> = Constructor<C>;
+export interface MessageConstructor<C extends AbstractSagaMessage> {
+    new (sagaId: string): C;
+}
 export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
 
 export abstract class CommandEndpoint<
@@ -25,6 +31,7 @@ export abstract class CommandEndpoint<
     private _commandReqCtor: MessageConstructor<ReqC>;
     private _commandSuccessResCtor: MessageConstructor<SuccessResC>;
     private _commandFailureResCtor: MessageConstructor<FailureResC>;
+    private _commandRepository: CommandRepository<ReqC, TxContext>;
 
     constructor(
         reqChannelName: ChannelName,
@@ -33,6 +40,7 @@ export abstract class CommandEndpoint<
         commandReqCtor: MessageConstructor<ReqC>,
         commandSuccessResCtor: MessageConstructor<SuccessResC>,
         commandFailureResCtor: MessageConstructor<FailureResC>,
+        commandRepository: CommandRepository<ReqC, TxContext>
     ) {
         this._reqChannelName = reqChannelName;
         this._successResChannelName = successResChannelName;
@@ -40,6 +48,7 @@ export abstract class CommandEndpoint<
         this._commandReqCtor = commandReqCtor;
         this._commandSuccessResCtor = commandSuccessResCtor;
         this._commandFailureResCtor = commandFailureResCtor;
+        this._commandRepository = commandRepository;
     }
 
     public getReqChannelName(): string {
@@ -64,5 +73,9 @@ export abstract class CommandEndpoint<
 
     public getCommandFailureResCtor(): MessageConstructor<FailureResC> {
         return this._commandFailureResCtor;
+    }
+
+    public getCommandRepository(): CommandRepository<ReqC, TxContext> {
+        return this._commandRepository;
     }
 }

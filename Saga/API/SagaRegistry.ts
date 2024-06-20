@@ -7,6 +7,8 @@ import { saga, sagaDefinition, sagaRepository } from "../Saga";
 import { randomUUID } from "crypto";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 
+import { Constructor } from "../../common/syntex";
+
 
 export interface SagaNameAndIdConvention {
     makeSagaIdFromName(sagaName: string): string;
@@ -53,12 +55,13 @@ export class SagaRegistry<Tx extends TxContext> {
         const sagaId = message.getSagaMessage().getSagaId();
         try {
             for (const saga of this.sagas) {
-                // If multiple saga is found for the same message, 
+                // If multiple saga is found for the same message, ... (To be described)
                 if (saga.hasPublishedSagaWithId(sagaId)) {
                     await this.orchestrator.orchestrate(saga, message);
                 }
             }
         } catch (error) {
+            console.error(`Error consuming event ${message.getSagaMessage().getSagaId()}`);
             throw ErrEventConsumptionError;
         }
     }

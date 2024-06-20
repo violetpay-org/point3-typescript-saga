@@ -1,5 +1,5 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-import { AbstractCompensationSagaAction, AbstractInvocationSagaAction } from "./Saga";
+import { CompensationSagaAction, InvocationSagaAction } from "./Saga";
 import { endpoint } from "../Endpoint";
 
 export class Step<Tx extends TxContext> {
@@ -9,8 +9,8 @@ export class Step<Tx extends TxContext> {
         this.name = name;
     }
 
-    compensationAction: AbstractCompensationSagaAction<Tx>;
-    invocationAction: AbstractInvocationSagaAction<Tx>;
+    compensationAction: CompensationSagaAction<Tx, endpoint.Command>;
+    invocationAction: InvocationSagaAction<Tx, endpoint.Command>;
     retry: boolean;
     onReplies: Array<endpoint.MessageHandlerFunc<endpoint.AbstractSagaMessage, Executable<Tx>>> = [];
 

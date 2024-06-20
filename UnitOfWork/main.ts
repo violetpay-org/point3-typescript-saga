@@ -1,4 +1,4 @@
-export abstract class TxContext {}
+export interface TxContext {}
 
 export type Executable<T extends TxContext> = (txContext: T) => Promise<void>;
 export type CombineExecutable<T extends TxContext> = (txContext: T, ...args: Executable<T>[]) => Executable<T>;
@@ -46,9 +46,10 @@ export abstract class UnitOfWork<T extends TxContext> {
             this._executables.forEach(async (executable) => await executable(tx))
             await this._commitCommand();
             return true;
+        } catch (error) {
+            return false;
         } finally {
             await this._rollbackCommand();
-            return false;
         }
     }
 }

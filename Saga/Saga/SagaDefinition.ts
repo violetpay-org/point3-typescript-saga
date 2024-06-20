@@ -2,11 +2,9 @@ import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 import { Step } from "./Step";
 
 export class SagaDefinition<Tx extends TxContext> {
-    name: string;
     steps: Step<Tx>[] = [];
 
-    public constructor(sagaName: string) {
-        this.name = sagaName;
+    public constructor() {
         this.steps = [];
     }
 

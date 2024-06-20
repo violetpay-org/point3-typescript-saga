@@ -4,18 +4,13 @@ import { saga, sagaDefinition, step } from "../Saga";
 import { endpoint } from "../Endpoint";
 
 import * as stepBuilder from "./StepBuilder";
+import { CompensationSagaAction, InvocationSagaAction } from "../Saga/Saga";
 
 export class SagaBuilder<Tx extends TxContext> {
     private _saga: sagaDefinition.SagaDefinition<Tx>;
-    protected _sagaName: string;
 
-    // TODO: Implement invocation and compensation saga action factories
-    protected _invocationSagaActionFactory: saga.InvocationSagaActionFactory<Tx>;
-    protected _compensationSagaActionFactory: saga.CompensationSagaActionFactory<Tx>;
-
-    public constructor(sagaName: string) {
-        this._saga = new sagaDefinition.SagaDefinition(sagaName);
-        this._sagaName = sagaName;
+    public constructor() {
+        this._saga = new sagaDefinition.SagaDefinition();
     }
 
     getSteps(): step.Step<Tx>[] {
@@ -38,8 +33,8 @@ export class SagaBuilder<Tx extends TxContext> {
 export class StepBuilder<Tx extends TxContext> extends SagaBuilder<Tx> implements stepBuilder.IStepBuilder<Tx> {
     protected _currentStep: step.Step<Tx>;
 
-    public constructor(sagaName: string) {
-        super(sagaName);
+    public constructor() {
+        super();
         this._currentStep = new step.Step("sentinel");
     }
 
@@ -48,11 +43,8 @@ export class StepBuilder<Tx extends TxContext> extends SagaBuilder<Tx> implement
         this._currentStep = new step.Step(name);
 
         return new InvokableStepBuilder(
-            this._sagaName,
             this,
-            this._currentStep,
-            this._invocationSagaActionFactory,
-            this._compensationSagaActionFactory
+            this._currentStep
         );
     }
 
@@ -70,13 +62,10 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     stepBuilder.IncompensatableStepBuilder<Tx> 
 {
     constructor(
-        sagaName: string, 
         sagaBuilder: SagaBuilder<Tx>, 
-        currentStep: step.Step<Tx>,
-        private invocationSagaActionFactory: saga.InvocationSagaActionFactory<Tx>,
-        private compensationSagaActionFactory: saga.CompensationSagaActionFactory<Tx>
+        currentStep: step.Step<Tx>
     ) {
-        super(sagaName);
+        super();
         return this.loadSteps(sagaBuilder, currentStep);
     }
 
@@ -92,12 +81,18 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     }
     
     public withCompensation(endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): stepBuilder.IncompensatableStepBuilder<Tx> {
-        this._currentStep.compensationAction = this.compensationSagaActionFactory(endpoint);
+        this._currentStep.compensationAction = new CompensationSagaAction(
+            endpoint.getCommandRepository(),
+            endpoint,
+        )
         return this;
     }
 
     public invoke(endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): stepBuilder.AfterInvokationStepBuilder<Tx> {
-        this._currentStep.invocationAction = this.invocationSagaActionFactory(endpoint);
+        this._currentStep.invocationAction = new InvocationSagaAction(
+            endpoint.getCommandRepository(),
+            endpoint,
+        )
         return this;
     }
 
