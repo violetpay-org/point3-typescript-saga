@@ -7,40 +7,24 @@ enum ExampleSagaResponseStatus {
     Failure = "Failure"
 }
 
-export class ExampleRequestCommand implements point3Saga.endpoint.endpoint.Command {
-    private sagaId: string;
-    
+export class ExampleRequestCommand extends point3Saga.endpoint.endpoint.Command {    
     constructor(sagaId: string) {
-        this.sagaId = sagaId;
-    }
-    
-    public getSagaId(): string {
-        return this.sagaId;
+        super(sagaId);
     }
 }
 
-export class ExampleSuccessResponse implements point3Saga.endpoint.endpoint.Command {
+export class ExampleSuccessResponse extends point3Saga.endpoint.endpoint.Command {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Success;
-    private sagaId: string;
     
     constructor(sagaId: string) {
-        this.sagaId = sagaId;
-    }
-    
-    public getSagaId(): string {
-        return this.sagaId;
+        super(sagaId);
     }
 }
 
-export class ExampleFailureResponse implements point3Saga.endpoint.endpoint.Command {
+export class ExampleFailureResponse extends point3Saga.endpoint.endpoint.Command {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Failure;
-    private sagaId: string;
     
     constructor(sagaId: string) {
-        this.sagaId = sagaId;
-    }
-    
-    public getSagaId(): string {
-        return this.sagaId;
+        super(sagaId);
     }
 }

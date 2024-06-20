@@ -13,7 +13,17 @@ export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
     getSagaMessage(): M;
 }
 
-export interface Command extends AbstractSagaMessage {}
+export abstract class Command implements AbstractSagaMessage {
+    protected _sagaId: string
+
+    constructor(sagaId: string) {
+        this._sagaId = sagaId;
+    }
+    
+    getSagaId(): string {
+        return this._sagaId;
+    }
+}
 
 export interface MessageConstructor<C extends AbstractSagaMessage> {
     new (sagaId: string): C;
