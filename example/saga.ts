@@ -15,8 +15,8 @@ export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.Ab
 > {
     protected static sagaName: string = "ExampleSaga";
 
-    private sagaDefinition: point3Saga.core.sagaDefinition.SagaDefinition<T>;
-    private sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession>;
+    private sagaDefinition: point3Saga.planning.definition.SagaDefinition<T>;
+    private sagaSessionRepository: point3Saga.saga.repository.SagaSessionRepository<T, ExampleSagaSession>;
 
     // The following command repositories differs by the implementation of AbstractSaga subclass.
     // This implementation only has two command repositories because saga schema of the concrete class
@@ -26,7 +26,7 @@ export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.Ab
     
     private static applySagaSchemaTo<T extends TxContext>(
         sagaBuilder: point3Saga.api.sagaBuilder.StepBuilder<T>,        
-    ): point3Saga.core.sagaDefinition.SagaDefinition<T> {
+    ): point3Saga.planning.definition.SagaDefinition<T> {
         return sagaBuilder
             .step("Step1")
             .invoke(new ExampleEndpoint(this.stepOneInvocationCommandRepository))
@@ -36,7 +36,7 @@ export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.Ab
     
     constructor(
         builder: point3Saga.api.sagaBuilder.StepBuilder<T>,
-        sagaSessionRepository: point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession>,
+        sagaSessionRepository: point3Saga.saga.repository.SagaSessionRepository<T, ExampleSagaSession>,
         // Only for this specific implementation
         stepOneInvocationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, T>,
         stepOneCompensationCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, T>,
@@ -54,11 +54,11 @@ export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.Ab
         return ExampleSaga.sagaName;
     }
 
-    getDefinition(): point3Saga.core.sagaDefinition.SagaDefinition<T> {
+    getDefinition(): point3Saga.planning.definition.SagaDefinition<T> {
         return this.sagaDefinition;
     }
 
-    getSagaRepository(): point3Saga.core.sagaRepository.SagaSessionRepository<T, ExampleSagaSession> {
+    getSagaRepository(): point3Saga.saga.repository.SagaSessionRepository<T, ExampleSagaSession> {
         return this.sagaSessionRepository;
     }
 

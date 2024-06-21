@@ -3,7 +3,8 @@ import { SagaOrchestrator } from "./SagaOrchestrator";
 import { ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors";
 
 import { endpoint } from "../Endpoint";
-import { saga, sagaDefinition, sagaRepository } from "../Saga";
+import { definition } from "../SagaPlanning";
+import * as saga from "../SagaSession";
 import { randomUUID } from "crypto";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 
@@ -17,11 +18,11 @@ export interface SagaNameAndIdConvention {
 
 export abstract class AbstractSaga<
     Tx extends TxContext,
-    A extends saga.SagaSessionArguments,
-    I extends saga.SagaSession
+    A extends saga.session.SagaSessionArguments,
+    I extends saga.session.SagaSession
 > {
-    abstract getDefinition(): sagaDefinition.SagaDefinition<Tx>;
-    abstract getSagaRepository(): sagaRepository.SagaSessionRepository<Tx, I>;
+    abstract getDefinition(): definition.SagaDefinition<Tx>;
+    abstract getSagaRepository(): saga.repository.SagaSessionRepository<Tx, I>;
     abstract getName(): string;
     abstract createSession(arg: A): Promise<I>
 
@@ -40,14 +41,14 @@ export abstract class AbstractSaga<
 }
 
 export class SagaRegistry<Tx extends TxContext> {
-    protected sagas: Array<AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>> = [];
+    protected sagas: Array<AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
 
     constructor(orchestrator: SagaOrchestrator<Tx>) {
         this.orchestrator = orchestrator;
     }
 
-    public registerSaga(saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>) {
+    public registerSaga(saga: AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>) {
         this.sagas.push(saga);
     }
 
@@ -68,8 +69,8 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public async startSaga<
         Tx extends TxContext,
-        A extends saga.SagaSessionArguments,
-        I extends saga.SagaSession,
+        A extends saga.session.SagaSessionArguments,
+        I extends saga.session.SagaSession,
     >(
         sagaName: string,
         sessionArg: A,

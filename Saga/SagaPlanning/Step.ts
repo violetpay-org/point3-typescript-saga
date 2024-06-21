@@ -1,5 +1,5 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-import { CompensationSagaAction, InvocationSagaAction } from "./Saga";
+import { CompensationSagaAction, InvocationSagaAction, LocalCompensationSagaAction, LocalInvocationSagaAction } from "./SagaAction";
 import { endpoint } from "../Endpoint";
 
 export class Step<Tx extends TxContext> {
@@ -9,8 +9,8 @@ export class Step<Tx extends TxContext> {
         this.name = name;
     }
 
-    compensationAction: CompensationSagaAction<Tx, endpoint.Command>;
-    invocationAction: InvocationSagaAction<Tx, endpoint.Command>;
+    compensationAction: CompensationSagaAction<Tx, endpoint.Command> | LocalCompensationSagaAction<Tx>;
+    invocationAction: InvocationSagaAction<Tx, endpoint.Command> | LocalInvocationSagaAction<Tx>;
     retry: boolean;
     onReplies: Array<endpoint.MessageHandlerFunc<endpoint.AbstractSagaMessage, Executable<Tx>>> = [];
 
@@ -38,5 +38,19 @@ export class Step<Tx extends TxContext> {
 
     public mustComplete(): boolean {
         return this.retry;
+    }
+
+    public isLocallyInvocable(): boolean {
+        if (this.invocationAction instanceof LocalInvocationSagaAction) {
+            return true;
+        }
+        return false;
+    }
+
+    public isLocallyCompensatable(): boolean {
+        if (this.compensationAction instanceof LocalCompensationSagaAction) {
+            return true;
+        }
+        return false;
     }
 }

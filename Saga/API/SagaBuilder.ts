@@ -1,27 +1,26 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 
-import { saga, sagaDefinition, step } from "../Saga";
+import * as sagaPlanning from "../SagaPlanning";
 import { endpoint } from "../Endpoint";
 
 import * as stepBuilder from "./StepBuilder";
-import { CompensationSagaAction, InvocationSagaAction } from "../Saga/Saga";
 
 export class SagaBuilder<Tx extends TxContext> {
-    private _saga: sagaDefinition.SagaDefinition<Tx>;
+    private _saga: sagaPlanning.definition.SagaDefinition<Tx>;
 
     public constructor() {
-        this._saga = new sagaDefinition.SagaDefinition();
+        this._saga = new sagaPlanning.definition.SagaDefinition();
     }
 
-    getSteps(): step.Step<Tx>[] {
+    getSteps(): sagaPlanning.step.Step<Tx>[] {
         return this._saga.steps;
     }
 
-    protected addStep(step: step.Step<Tx>) {
+    protected addStep(step: sagaPlanning.step.Step<Tx>) {
         this._saga.steps.push(step);
     }
     
-    public build(): sagaDefinition.SagaDefinition<Tx> {
+    public build(): sagaPlanning.definition.SagaDefinition<Tx> {
         if (!this._saga.checkNoDuplicateStepNames()) {
             throw new Error("Duplicate step names found in saga");
         }
@@ -31,16 +30,16 @@ export class SagaBuilder<Tx extends TxContext> {
 }
 
 export class StepBuilder<Tx extends TxContext> extends SagaBuilder<Tx> implements stepBuilder.IStepBuilder<Tx> {
-    protected _currentStep: step.Step<Tx>;
+    protected _currentStep: sagaPlanning.step.Step<Tx>;
 
     public constructor() {
         super();
-        this._currentStep = new step.Step("sentinel");
+        this._currentStep = new sagaPlanning.step.Step("sentinel");
     }
 
-    public step(name: string): stepBuilder.IInvokableStepBuilder<Tx> {
+    public step(name: string): stepBuilder.IInvokableStepBuilder<Tx>  & stepBuilder.ILocalInvocableStepBuilder<Tx> {
         super.addStep(this._currentStep);
-        this._currentStep = new step.Step(name);
+        this._currentStep = new sagaPlanning.step.Step(name);
 
         return new InvokableStepBuilder(
             this,
@@ -48,7 +47,7 @@ export class StepBuilder<Tx extends TxContext> extends SagaBuilder<Tx> implement
         );
     }
 
-    public build(): sagaDefinition.SagaDefinition<Tx> {
+    public build(): sagaPlanning.definition.SagaDefinition<Tx> {
         super.addStep(this._currentStep);
         return super.build();
     }
@@ -59,11 +58,11 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     stepBuilder.IInvokableStepBuilder<Tx>,
     stepBuilder.MustCompleteStepBuilder<Tx>, 
     stepBuilder.AfterInvokationStepBuilder<Tx>, 
-    stepBuilder.IncompensatableStepBuilder<Tx> 
+    stepBuilder.IncompensatableStepBuilder<Tx>
 {
     constructor(
         sagaBuilder: SagaBuilder<Tx>, 
-        currentStep: step.Step<Tx>
+        currentStep: sagaPlanning.step.Step<Tx>
     ) {
         super();
         return this.loadSteps(sagaBuilder, currentStep);
@@ -71,7 +70,7 @@ class InvokableStepBuilder<Tx extends TxContext> extends
 
     private loadSteps(
         sagaBuilder: SagaBuilder<Tx>, 
-        currentStep: step.Step<Tx>
+        currentStep: sagaPlanning.step.Step<Tx>
     ): InvokableStepBuilder<Tx> {
         sagaBuilder.getSteps().forEach(step => {
             this.addStep(step);
@@ -81,7 +80,7 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     }
     
     public withCompensation(endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): stepBuilder.IncompensatableStepBuilder<Tx> {
-        this._currentStep.compensationAction = new CompensationSagaAction(
+        this._currentStep.compensationAction = new sagaPlanning.action.CompensationSagaAction(
             endpoint.getCommandRepository(),
             endpoint,
         )
@@ -89,7 +88,7 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     }
 
     public invoke(endpoint: endpoint.CommandEndpoint<endpoint.Command, endpoint.Command, endpoint.Command>): stepBuilder.AfterInvokationStepBuilder<Tx> {
-        this._currentStep.invocationAction = new InvocationSagaAction(
+        this._currentStep.invocationAction = new sagaPlanning.action.InvocationSagaAction(
             endpoint.getCommandRepository(),
             endpoint,
         )
@@ -102,6 +101,26 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     }
 
     public retry(): stepBuilder.IncompensatableStepBuilder<Tx> {
+        this._currentStep.retry = true;
+        return this;
+    }
+
+    // For Local invocation
+    public localInvoke(endpoint: endpoint.LocalEndpoint<endpoint.Command, endpoint.Command>): stepBuilder.AfterLocalInvocationStepBuilder<Tx> {
+        this._currentStep.invocationAction = new sagaPlanning.action.LocalInvocationSagaAction(
+            endpoint,
+        )
+        return this;
+    }
+
+    public withLocalCompensation(endpoint: endpoint.LocalEndpoint<endpoint.Command, endpoint.Command>): stepBuilder.IStepBuilder<Tx> {
+        this._currentStep.compensationAction = new sagaPlanning.action.LocalCompensationSagaAction(
+            endpoint,
+        )
+        return this;
+    }
+
+    public localRetry(): stepBuilder.IStepBuilder<Tx> {
         this._currentStep.retry = true;
         return this;
     }

@@ -1,7 +1,3 @@
-import { saga } from ".";
-import { endpoint, channel, commandRepository } from "../Endpoint";
-import { Executable, TxContext, UnitOfWork } from "src/point3-typescript-saga/UnitOfWork/main";
-
 abstract class SagaState {
     private _isFailed: boolean = false;
     private _isCompensating: boolean = false;
@@ -134,53 +130,3 @@ export abstract class SagaSession extends SagaState {
         this._flagSetupForPending
     }
 }
-
-export class InvocationSagaAction<
-    Tx extends TxContext,
-    InvocationCommand extends endpoint.Command
-> {
-    protected commandRepository: commandRepository.CommandRepository<InvocationCommand, Tx>;
-    invocationDestination: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>;
-
-    constructor(
-        commandRepository: commandRepository.CommandRepository<InvocationCommand, Tx>,
-        endpoint: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>
-    ) {
-        this.commandRepository = commandRepository;
-        this.invocationDestination = endpoint;
-    }
-
-    public async executeInvocation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
-        const invocationCommand = new (this.invocationDestination.getCommandReqCtor())(sagaSession.getSagaId());
-        return this.commandRepository.saveCommand(invocationCommand);
-    }
-}
-
-export class CompensationSagaAction<
-    Tx extends TxContext,
-    CompensationCommand extends endpoint.Command
-> {
-    protected commandRepository: commandRepository.CommandRepository<CompensationCommand, Tx>;
-    compensationDestination: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>;
-
-    constructor(
-        commandRepository: commandRepository.CommandRepository<CompensationCommand, Tx>,
-        endpoint: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>
-    ) {
-        this.commandRepository = commandRepository;
-        this.compensationDestination = endpoint;
-    }
-
-    public async executeCompensation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
-        const compensationCommand = new (this.compensationDestination.getCommandReqCtor())(sagaSession.getSagaId());
-        return this.commandRepository.saveCommand(compensationCommand);
-    }
-}
-
-// export interface InvocationSagaActionFactory<Tx extends TxContext, InvocationCommand extends endpoint.Command> {
-//     (endpoint: endpoint.CommandEndpoint<InvocationCommand, endpoint.Command, endpoint.Command>): AbstractInvocationSagaAction<Tx, InvocationCommand>;
-// }
-
-// export interface CompensationSagaActionFactory<Tx extends TxContext, CompensationCommand extends endpoint.Command> {
-//     (endpoint: endpoint.CommandEndpoint<CompensationCommand, endpoint.Command, endpoint.Command>): AbstractCompensationSagaAction<Tx, CompensationCommand>;
-// }

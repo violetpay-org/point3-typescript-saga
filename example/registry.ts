@@ -1,5 +1,4 @@
 import * as point3Saga from "../Saga";
-import { TxContext } from "../UnitOfWork/main";
 import { InMemoryTxContext, InMemoryUnitOfWork } from "../UnitOfWork/inMemory";
 
 export class ExampleInMemorySagaRegistry extends point3Saga.api.registry.SagaRegistry<InMemoryTxContext> {

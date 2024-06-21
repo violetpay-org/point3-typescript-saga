@@ -1,7 +1,16 @@
 export interface TxContext {}
 
 export type Executable<T extends TxContext> = (txContext: T) => Promise<void>;
-export type CombineExecutable<T extends TxContext> = (txContext: T, ...args: Executable<T>[]) => Executable<T>;
+export type CombineExecutable<T extends TxContext> = (...args: Executable<T>[]) => Executable<T>;
+
+// Basic implementation of a CombineExecutable
+// Order matters, so the executables are executed in the order they are passed in.
+export function BaseCombineExecutable<T extends TxContext>(...args: Executable<T>[]): Executable<T> {
+    return async (txContext: T) => {
+        args.forEach(async (arg) => await arg(txContext));
+    }
+}
+
 
 export type UnitOfWorkFactory<T extends TxContext> = () => UnitOfWork<T>;
 

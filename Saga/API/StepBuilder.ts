@@ -1,10 +1,10 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 import { endpoint } from "../Endpoint";
-import { sagaDefinition } from "../Saga";
+import { definition } from "../SagaPlanning";
 
 export interface IStepBuilder<Tx extends TxContext> {
-    step(name: string): IInvokableStepBuilder<Tx>;
-    build(): sagaDefinition.SagaDefinition<Tx>;
+    step(name: string): IInvokableStepBuilder<Tx> & ILocalInvocableStepBuilder<Tx>;
+    build(): definition.SagaDefinition<Tx>;
 }
 
 export interface ReplyDispatchableStepBuilder<
@@ -40,3 +40,20 @@ export interface IncompensatableStepBuilder<Tx extends TxContext> extends
         Tx
     >
 {}
+
+// For Local invocation
+export interface ILocalInvocableStepBuilder<Tx extends TxContext> {
+    localInvoke(endpoint: endpoint.LocalEndpoint<endpoint.Command, endpoint.Command>): AfterLocalInvocationStepBuilder<Tx>;
+}
+export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends 
+    IStepBuilder<Tx>,
+    ILocalMustCompleteStepBuilder<Tx>
+{
+    withLocalCompensation(endpoint: endpoint.LocalEndpoint<endpoint.Command, endpoint.Command>): IStepBuilder<Tx>;
+}
+export interface ILocalMustCompleteStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {
+    localRetry(): IStepBuilder<Tx>;
+}
+
+
+
