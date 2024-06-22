@@ -34,10 +34,10 @@ export class StepBuilder<Tx extends TxContext> extends SagaBuilder<Tx> implement
 
     public constructor() {
         super();
-        this._currentStep = new sagaPlanning.step.Step("sentinel");
+        this._currentStep = new sagaPlanning.step.CentinelStep;
     }
 
-    public step(name: string): stepBuilder.IInvokableStepBuilder<Tx>  & stepBuilder.ILocalInvocableStepBuilder<Tx> {
+    public step(name: string): stepBuilder.IInvokableStepBuilder<Tx> & stepBuilder.ILocalInvocableStepBuilder<Tx> {
         super.addStep(this._currentStep);
         this._currentStep = new sagaPlanning.step.Step(name);
 

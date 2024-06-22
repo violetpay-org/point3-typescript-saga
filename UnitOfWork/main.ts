@@ -26,7 +26,7 @@ export abstract class UnitOfWork<T extends TxContext> {
         this._executables.push(executable);
     }
 
-    /**
+    /** 
      * Begins a transaction.
      * This method should be implemented by the concrete class.
      */

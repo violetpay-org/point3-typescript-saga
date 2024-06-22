@@ -1,5 +1,5 @@
 import { endpoint, commandRepository } from "../Endpoint";
-import { Executable, TxContext, UnitOfWork, BaseCombineExecutable } from "src/point3-typescript-saga/UnitOfWork/main";
+import { Executable, TxContext, BaseCombineExecutable } from "../../UnitOfWork/main";
 
 import * as saga from '../SagaSession'
 

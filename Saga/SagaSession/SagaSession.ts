@@ -18,7 +18,8 @@ abstract class SagaState {
         this._isFailed = false;
         this._isCompleted = true;
         this._isRetrying = false;    
-        this._isCompensating = false;    
+        this._isCompensating = false;
+        this._isPending = false;    
     }
 
     protected _flagSetupForFailure() {
@@ -26,6 +27,7 @@ abstract class SagaState {
         this._isCompleted = false;
         this._isRetrying = false;
         this._isCompensating = false;
+        this._isPending = false;
     }
 
     protected _flagSetupForMustComplete() {

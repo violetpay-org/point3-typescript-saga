@@ -1,6 +1,6 @@
 import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 import { SagaOrchestrator } from "./SagaOrchestrator";
-import { ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors";
+import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors";
 
 import { endpoint } from "../Endpoint";
 import { definition } from "../SagaPlanning";
@@ -9,12 +9,6 @@ import { randomUUID } from "crypto";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 
 import { Constructor } from "../../common/syntex";
-
-
-export interface SagaNameAndIdConvention {
-    makeSagaIdFromName(sagaName: string): string;
-    getSagaNameFromId(sagaId: string): string;
-}
 
 export abstract class AbstractSaga<
     Tx extends TxContext,
@@ -48,7 +42,15 @@ export class SagaRegistry<Tx extends TxContext> {
         this.orchestrator = orchestrator;
     }
 
+    public hasSagaWithName(sageName: string): boolean {
+        return this.sagas.some(saga => saga.getName() === sageName);
+    }
+
     public registerSaga(saga: AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>) {
+        if (this.hasSagaWithName(saga.getName())) {
+            throw ErrDuplicateSaga;
+        }
+
         this.sagas.push(saga);
     }
 
@@ -62,7 +64,7 @@ export class SagaRegistry<Tx extends TxContext> {
                 }
             }
         } catch (error) {
-            console.error(`Error consuming event ${message.getSagaMessage().getSagaId()}`);
+            console.error(error);
             throw ErrEventConsumptionError;
         }
     }

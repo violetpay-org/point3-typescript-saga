@@ -1,7 +1,6 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 import { CompensationSagaAction, InvocationSagaAction, LocalCompensationSagaAction, LocalInvocationSagaAction } from "./SagaAction";
 import { endpoint } from "../Endpoint";
-
 export class Step<Tx extends TxContext> {
     private name: string;
 
@@ -39,18 +38,11 @@ export class Step<Tx extends TxContext> {
     public mustComplete(): boolean {
         return this.retry;
     }
+}
 
-    public isLocallyInvocable(): boolean {
-        if (this.invocationAction instanceof LocalInvocationSagaAction) {
-            return true;
-        }
-        return false;
-    }
-
-    public isLocallyCompensatable(): boolean {
-        if (this.compensationAction instanceof LocalCompensationSagaAction) {
-            return true;
-        }
-        return false;
+export const CENTINEL_STEP_NAME = "sentinel";
+export class CentinelStep<Tx extends TxContext> extends Step<Tx> {
+    constructor() {
+        super(CENTINEL_STEP_NAME);
     }
 }
