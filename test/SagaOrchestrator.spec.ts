@@ -29,8 +29,10 @@ import { InMemoryTxContext } from "../UnitOfWork/inMemory";
 import { InMemoryExampleRequestCommandRepository } from "./repository";
 import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
-import { ErrDuplicateSaga } from "../Saga/Errors";
+import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors";
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoint";
+import exp from "constants";
+import { Step } from "../Saga/SagaPlanning/Step";
 
 var commandRepo: InMemoryExampleRequestCommandRepository;
 var sagaRepo: InMemoryExampleSagaSaver;
@@ -285,39 +287,345 @@ describe("SagaOrchestrator", () => {
 
         expect(sagaSessions[0].isFailed()).toBeTruthy();
     });
+
+    it("should turn saga session state to completed after consuming a success response in pending state", async () => {
+        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step("localStep1")
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            localActionSagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        const sagaId = sagaSessions[0].getSagaId();
+        expect(sagaSessions[0].isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        expect(sagaSessions[0].isCompleted()).toBeTruthy();
+    });
+
+    it("should invoke next step local endpoint when the step successfully completes invoking the current endpoint", async () => {
+        const STEP_1 = "localStep1";
+        const STEP_2 = "localStep2";
+        
+        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step(STEP_1)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(STEP_2)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            localActionSagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        var sagaSession = sagaSessions[0];
+        const sagaId = sagaSession.getSagaId();
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_1);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_2);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.isCompleted()).toBeTruthy();
+    });
+
+    it("should compensate the endpoint before currently invoking step if the invocation was unsuccessful", async () => {
+        const STEP_1 = "localStep1";
+        const STEP_2 = "localStep2";
+        
+        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step(STEP_1)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(STEP_2)
+                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            localActionSagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        var sagaSession = sagaSessions[0];
+        const sagaId = sagaSession.getSagaId();
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_1);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_2);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalFailureResponseChannel()
+                .parseMessageWithOrigin(new ExampleFailureResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.isCompensating()).toBeTruthy();
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_1);
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.isFailed()).toBeTruthy();
+    });
+
+    it("should retry endlessly if the endpoint is set to retry", async () => {
+        const STEP_1 = "localStep1";
+        const STEP_2 = "localStep2";
+        
+        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step(STEP_1)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(STEP_2)
+                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
+                .localRetry()
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            localActionSagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        var sagaSession = sagaSessions[0];
+        const sagaId = sagaSession.getSagaId();
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_1);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        await registry.consumeEvent(
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+        );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.getCurrentStepName()).toBe(STEP_2);
+        expect(sagaSession.isPending()).toBeTruthy();
+
+        for (let i = 0; i < 10; i++) {
+            await registry.consumeEvent(
+                new ExampleLocalFailureResponseChannel()
+                    .parseMessageWithOrigin(new ExampleFailureResponse(sagaId))
+            );
+
+            sagaSessions = Array.from(sagaRepo.getSessions());
+            sagaSession = sagaSessions[0];
+            expect(sagaSession.getCurrentStepName()).toBe(STEP_2);
+        }
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        sagaSession = sagaSessions[0];
+        expect(sagaSession.isInForwardDirection()).toBeTruthy();
+    });
+
+    it("should not accept an unrelated message never has produced by the saga", async () => {
+        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step("step1")
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            emptySagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        const sagaId = sagaSessions[0].getSagaId();
+
+        var err: Error;
+
+        try {
+            await registry.consumeEvent(
+                new ExampleRequestChannel().parseMessageWithOrigin(new ExampleRequestCommand(sagaId))
+            );
+        } catch (error) {
+            err = error;
+        }
+
+        expect(err).toBe(ErrEventConsumptionError);
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        expect(sagaSessions[0].isPending()).toBeTruthy();
+    });
+
+    it("should raise dead saga session error when trying to relay a message to a saga that has already completed or failed", async () => {
+        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder.build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            emptySagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        const sagaId = sagaSessions[0].getSagaId();
+        var err: Error;
+
+        try {
+            await registry.consumeEvent(
+                new ExampleLocalSuccessResponseChannel().parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+            );
+        } catch (error) {
+            err = error;
+        }
+
+        expect(err).toBe(ErrEventConsumptionError);
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
+        expect(sagaSessions[0].isCompleted()).toBeTruthy();
+    });
+
+    it("should be able to accept any number of invocation steps", async () => {
+        enum Steps {
+            STEP_1 = "localStep1",
+            STEP_2 = "localStep2",
+            STEP_3 = "localStep3",
+            STEP_4 = "localStep4",
+            STEP_5 = "localStep5",
+        }
+        
+        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+            return builder
+                .step(Steps.STEP_1)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(Steps.STEP_2)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(Steps.STEP_3)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(Steps.STEP_4)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .step(Steps.STEP_5)
+                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .build();
+        }
+
+        BuildSagaAndRegister(
+            registry,
+            builder,
+            localActionSagaSchema,
+            sagaRepo,
+        );
+
+        await registry.startSaga(
+            ExampleSaga.getName(),
+            new ExampleSagaSessionArguments(),
+            ExampleSaga
+        );
+
+        const steps = Object.values(Steps);
+        for (let i = 0; i < steps.length; i++) {
+            var sagaSessions = Array.from(sagaRepo.getSessions());
+            var sagaSession = sagaSessions[0];
+            const sagaId = sagaSession.getSagaId();
+            expect(sagaSession.getCurrentStepName()).toBe(steps[i]);
+            expect(sagaSession.isPending()).toBeTruthy();
+
+            await registry.consumeEvent(
+                new ExampleLocalSuccessResponseChannel()
+                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+            );
+        }        
+
+        var sagaSessions = Array.from(sagaRepo.getSessions());
+        var sagaSession = sagaSessions[0];
+        expect(sagaSession.isCompleted()).toBeTruthy();
+    });
 });
-
-
-// async function build() {
-//     const commandRepo = new InMemoryExampleRequestCommandRepository();
-//     const sagaRepo = new InMemoryExampleSagaSaver();
-
-//     const registry: InMemoryExampleSagaRegistry = new InMemoryExampleSagaRegistry();
-//     const builder = new point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>();
-
-//     registry.registerSaga(new ExampleSaga(
-//         builder,
-//         sagaRepo,
-//         commandRepo,
-//         commandRepo,
-//     ));
-
-//     await registry.startSaga(
-//         ExampleSaga.getName(), 
-//         new ExampleSagaSessionArguments(),
-//         ExampleSaga
-//     );
-
-//     // spy for saga id from command repository to maunally consume the event
-//     const sagaCommands = await commandRepo.getCommands();   
-//     console.log(await commandRepo.getCommandsAsMap())
-//     const sagaId = sagaCommands.next().value.getSagaId();
-
-//     await registry.consumeEvent(
-//         new ExampleLocalSuccessResponseChannel().parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
-//     );
-
-//     console.log(await sagaRepo.getSagaSessionsAsMap());
-// }
-
-// build();

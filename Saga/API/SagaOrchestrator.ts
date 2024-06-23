@@ -1,6 +1,6 @@
 import { TxContext, UnitOfWork, UnitOfWorkFactory } from "src/point3-typescript-saga/UnitOfWork/main";
 import { AbstractSaga } from "./SagaRegistry";
-import { ErrChannelNotFound, ErrStepNotFound } from "../Errors";
+import { ErrChannelNotFound, ErrDeadSagaSession, ErrStepNotFound } from "../Errors";
 
 import { endpoint } from "../Endpoint";
 import { definition, step, action } from "../SagaPlanning";
@@ -61,6 +61,12 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
             .load(message.getSagaId());
         const currentStepName = sagaSession.getCurrentStepName();
         const currentStep = sagaDefinition.getStep(currentStepName);
+
+        if (sagaSession.isCompleted() ||
+            sagaSession.isFailed()
+        ) {
+            throw ErrDeadSagaSession;
+        }
 
         if (!currentStep) {
             throw ErrStepNotFound;
