@@ -1,4 +1,4 @@
-import { TxContext, UnitOfWork, UnitOfWorkFactory } from "src/point3-typescript-saga/UnitOfWork/main";
+import { TxContext, UnitOfWork, UnitOfWorkFactory } from "../../UnitOfWork/main";
 import { AbstractSaga } from "./SagaRegistry";
 import { ErrChannelNotFound, ErrDeadSagaSession, ErrStepNotFound } from "../Errors/index";
 

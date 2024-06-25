@@ -1,4 +1,4 @@
-import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+import { Executable, TxContext } from "../../UnitOfWork/main";
 import { SagaSession } from "./SagaSession";
 
 export interface SagaSessionRepository<Tx extends TxContext, I extends SagaSession> {

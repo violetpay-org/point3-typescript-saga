@@ -1,4 +1,4 @@
-import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+import { TxContext } from "../../UnitOfWork/main";
 import { SagaOrchestrator } from "./SagaOrchestrator";
 import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors/index";
 

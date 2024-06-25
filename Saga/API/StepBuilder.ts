@@ -1,4 +1,4 @@
-import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+import { Executable, TxContext } from "../../UnitOfWork/main";
 import * as endpoint from "../Endpoint/index";
 import * as planning from "../SagaPlanning/index";
 import * as saga from "../SagaSession/index";

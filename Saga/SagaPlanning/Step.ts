@@ -1,6 +1,6 @@
 import * as endpoint from "../Endpoint/index";
 import * as saga from "../SagaSession/index";
-import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+import { Executable, TxContext } from "../../UnitOfWork/main";
 
 import { 
     CompensationSagaAction, 

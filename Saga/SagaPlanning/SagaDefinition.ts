@@ -1,4 +1,4 @@
-import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
+import { TxContext } from "../../UnitOfWork/main";
 import { Step } from "./Step";
 
 export class SagaDefinition<Tx extends TxContext> {
