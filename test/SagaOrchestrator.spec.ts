@@ -26,7 +26,7 @@ import {
 } from "./saga";
 import { InMemoryExampleSagaRegistry } from "./registry";
 import { InMemoryTxContext } from "../UnitOfWork/inMemory";
-import { InMemoryExampleRequestCommandRepository } from "./repository";
+import { InMemoryExampleMessageRepository } from "./repository";
 import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
 import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors";
@@ -34,7 +34,10 @@ import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoi
 import exp from "constants";
 import { Step } from "../Saga/SagaPlanning/Step";
 
-var commandRepo: InMemoryExampleRequestCommandRepository;
+var successResRepo: InMemoryExampleMessageRepository<ExampleSuccessResponse>;
+var failureResRepo: InMemoryExampleMessageRepository<ExampleFailureResponse>;
+var commandRepo: InMemoryExampleMessageRepository<ExampleRequestCommand>;
+
 var sagaRepo: InMemoryExampleSagaSaver;
 var registry: InMemoryExampleSagaRegistry;
 var builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>;
@@ -44,7 +47,7 @@ function BuildSagaAndRegister<Tx extends TxContext>(
     builder: point3Saga.api.sagaBuilder.StepBuilder<Tx>,
     sagaSchema: (builder: point3Saga.api.sagaBuilder.StepBuilder<Tx>) => point3Saga.planning.definition.SagaDefinition<Tx>,
     sagaRepo: point3Saga.saga.repository.SagaSessionRepository<Tx, ExampleSagaSession>,
-): point3Saga.api.registry.AbstractSaga<Tx, ExampleSagaSessionArguments, ExampleSagaSession> {
+): point3Saga.api.sagaRegistry.AbstractSaga<Tx, ExampleSagaSessionArguments, ExampleSagaSession> {
     const saga = new ExampleSaga(
         builder,
         sagaSchema,
@@ -59,7 +62,9 @@ function BuildSagaAndRegister<Tx extends TxContext>(
 describe("SagaOrchestrator", () => {
     beforeEach(() => {
         // Reset all repositories before each test
-        commandRepo = new InMemoryExampleRequestCommandRepository();
+        successResRepo = new InMemoryExampleMessageRepository<ExampleSuccessResponse>();
+        failureResRepo = new InMemoryExampleMessageRepository<ExampleFailureResponse>();
+        commandRepo = new InMemoryExampleMessageRepository<ExampleRequestCommand>();
         sagaRepo = new InMemoryExampleSagaSaver();
         registry = new InMemoryExampleSagaRegistry();
 
@@ -151,7 +156,7 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -176,7 +181,7 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -194,10 +199,11 @@ describe("SagaOrchestrator", () => {
         );
 
         const sagaSessions = Array.from(sagaRepo.getSessions());
-        const sagaId = sagaSessions[0].getSagaId();
+        const sagaSession = sagaSessions[0];
 
         await registry.consumeEvent(
-            new ExampleLocalSuccessResponseChannel().parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+            new ExampleLocalSuccessResponseChannel()
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         expect(sagaSessions[0].isCompleted()).toBeTruthy();
@@ -207,7 +213,7 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -224,17 +230,17 @@ describe("SagaOrchestrator", () => {
             ExampleSaga
         );
 
-        const commands = commandRepo.getCommands();
-        const commandList = Array.from(commands);
-
-        expect(commandList.length).toBe(1);
+        const successResponses = successResRepo.getCommands();
+        const failureResponses = failureResRepo.getCommands();
+        const combinedResponses = [...successResponses, ...failureResponses];
+        expect(combinedResponses.length).toBe(1);
     });
 
     it("should produce a failed response when a local endpoint is invoked and the handler inside the endpoint throws an error", async () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -251,17 +257,16 @@ describe("SagaOrchestrator", () => {
             ExampleSaga
         );
 
-        const commands = commandRepo.getCommands();
-        const failureCommand = commands.next().value;
-        expect(failureCommand instanceof ExampleFailureResponse).toBeTruthy();
+        const failedCommands = [...failureResRepo.getCommands()];
+        expect(failedCommands.length).toBe(1);
     });
 
     it("should set saga session state to failed when it has consumed a failure response from a local action", async () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
-                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
+                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -279,10 +284,11 @@ describe("SagaOrchestrator", () => {
         );
 
         const sagaSessions = Array.from(sagaRepo.getSessions());
-        const sagaId = sagaSessions[0].getSagaId();
+        const sagaSession = sagaSessions[0];
 
         await registry.consumeEvent(
-            new ExampleLocalFailureResponseChannel().parseMessageWithOrigin(new ExampleFailureResponse(sagaId))
+            new ExampleLocalFailureResponseChannel()
+                .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
         );
 
         expect(sagaSessions[0].isFailed()).toBeTruthy();
@@ -292,7 +298,7 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -310,12 +316,12 @@ describe("SagaOrchestrator", () => {
         );
 
         var sagaSessions = Array.from(sagaRepo.getSessions());
-        const sagaId = sagaSessions[0].getSagaId();
-        expect(sagaSessions[0].isPending()).toBeTruthy();
+        const sagaSession = sagaSessions[0];
+        expect(sagaSession.isPending()).toBeTruthy();
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -329,9 +335,9 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(STEP_2)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -350,13 +356,12 @@ describe("SagaOrchestrator", () => {
 
         var sagaSessions = Array.from(sagaRepo.getSessions());
         var sagaSession = sagaSessions[0];
-        const sagaId = sagaSession.getSagaId();
         expect(sagaSession.getCurrentStepName()).toBe(STEP_1);
         expect(sagaSession.isPending()).toBeTruthy();
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -366,7 +371,7 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -381,10 +386,10 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
-                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
+                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(STEP_2)
-                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -409,7 +414,7 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -419,7 +424,7 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalFailureResponseChannel()
-                .parseMessageWithOrigin(new ExampleFailureResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -429,7 +434,7 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -444,10 +449,10 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
-                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
+                .withLocalCompensation(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(STEP_2)
-                .localInvoke(new AlwaysFailingLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
                 .localRetry()
                 .build();
         }
@@ -473,7 +478,7 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -484,7 +489,7 @@ describe("SagaOrchestrator", () => {
         for (let i = 0; i < 10; i++) {
             await registry.consumeEvent(
                 new ExampleLocalFailureResponseChannel()
-                    .parseMessageWithOrigin(new ExampleFailureResponse(sagaId))
+                    .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
             );
 
             sagaSessions = Array.from(sagaRepo.getSessions());
@@ -501,7 +506,7 @@ describe("SagaOrchestrator", () => {
         const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("step1")
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -519,13 +524,14 @@ describe("SagaOrchestrator", () => {
         );
 
         var sagaSessions = Array.from(sagaRepo.getSessions());
-        const sagaId = sagaSessions[0].getSagaId();
+        const sagaSession = sagaSessions[0];
 
         var err: Error;
 
         try {
             await registry.consumeEvent(
-                new ExampleRequestChannel().parseMessageWithOrigin(new ExampleRequestCommand(sagaId))
+                new ExampleRequestChannel()
+                    .parseMessageWithOrigin(new ExampleRequestCommand(sagaSession))
             );
         } catch (error) {
             err = error;
@@ -556,12 +562,13 @@ describe("SagaOrchestrator", () => {
         );
 
         var sagaSessions = Array.from(sagaRepo.getSessions());
-        const sagaId = sagaSessions[0].getSagaId();
+        const sagaSession = sagaSessions[0];
         var err: Error;
 
         try {
             await registry.consumeEvent(
-                new ExampleLocalSuccessResponseChannel().parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                new ExampleLocalSuccessResponseChannel()
+                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
             );
         } catch (error) {
             err = error;
@@ -585,15 +592,15 @@ describe("SagaOrchestrator", () => {
         const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(Steps.STEP_1)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(Steps.STEP_2)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(Steps.STEP_3)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(Steps.STEP_4)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .step(Steps.STEP_5)
-                .localInvoke(new AlwaysSuccessLocalEndpoint(commandRepo, commandRepo))
+                .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
                 .build();
         }
 
@@ -620,7 +627,7 @@ describe("SagaOrchestrator", () => {
 
             await registry.consumeEvent(
                 new ExampleLocalSuccessResponseChannel()
-                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaId))
+                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
             );
         }        
 

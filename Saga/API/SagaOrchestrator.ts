@@ -147,7 +147,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private isFailureInvocationResponse(
         originChan: ChannelName,
         invocationAction: 
-            action.InvocationSagaAction<Tx, endpoint.Command> | 
+            action.InvocationSagaAction<Tx, endpoint.Command<saga.session.SagaSession>> | 
             action.LocalInvocationSagaAction<Tx>
     ): boolean {
         const originChannelName = originChan;
@@ -248,7 +248,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private isFailureCompensationResponse(
         originChan: ChannelName,
         compensationAction: 
-            action.CompensationSagaAction<Tx, endpoint.Command> |
+            action.CompensationSagaAction<Tx, endpoint.Command<saga.session.SagaSession>> |
             action.LocalCompensationSagaAction<Tx>
     ): boolean {
         const originChannelName = originChan;

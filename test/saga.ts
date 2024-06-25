@@ -6,7 +6,7 @@ import {
     ExampleSagaSession,
 } from "./sagaSession";
 
-export class ExampleSaga<T extends TxContext> extends point3Saga.api.registry.AbstractSaga<
+export class ExampleSaga<T extends TxContext> extends point3Saga.api.sagaRegistry.AbstractSaga<
     T,
     ExampleSagaSessionArguments,
     ExampleSagaSession

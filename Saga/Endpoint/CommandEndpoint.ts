@@ -1,11 +1,12 @@
 import { ChannelName } from "./Channel";
 import { CommandRepository } from "./Command.repository";
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-
-import * as saga from '../SagaSession'
+import { randomUUID } from "crypto";
+import { SagaSession } from "../SagaSession/SagaSession";
 
 export interface AbstractSagaMessage {
-    getSagaId(): string
+    getSagaId(): string;
+    getId(): string;
 }
 
 export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
@@ -13,11 +14,26 @@ export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
     getSagaMessage(): M;
 }
 
-export abstract class Command implements AbstractSagaMessage {
+export abstract class Command<S extends SagaSession> implements AbstractSagaMessage {
     protected _sagaId: string
+    protected _id: string;
 
-    constructor(sagaId: string) {
-        this._sagaId = sagaId;
+    constructor(
+        sagaSession?: S,
+        id?: string,
+    ) {
+        this._sagaId = sagaSession.getSagaId();
+
+        if (id == undefined) {
+            this._id = randomUUID();
+            return this;
+        }
+        
+        this._id = id;
+    }
+
+    getId(): string {
+        return this._id;
     }
     
     getSagaId(): string {
@@ -25,35 +41,15 @@ export abstract class Command implements AbstractSagaMessage {
     }
 }
 
-export abstract class LocalResCommand extends Command {
-    protected _isConsumed: boolean;
-    
-    constructor(
-        sagaId: string,
-        isConsumed?: boolean
-    ) {
-        super(sagaId);
-
-        if (isConsumed == undefined) {
-            this._isConsumed = false;
-        } else {
-            this._isConsumed = isConsumed;
-        }
-    }
-
-    consume() {
-        this._isConsumed = true;
-    }
-}
-
 export interface MessageConstructor<C extends AbstractSagaMessage> {
-    new (sagaId: string): C;
+    new (sagaSession: SagaSession): C;
 }
 export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
 
 export abstract class EndpointWithSuccessFailureRes<
-    SuccessResC extends Command,
-    FailureResC extends Command
+    S extends SagaSession,
+    SuccessResC extends Command<S>,
+    FailureResC extends Command<S>
 > {
     constructor(
         private _successResChannelName: ChannelName,
@@ -80,10 +76,11 @@ export abstract class EndpointWithSuccessFailureRes<
 }
 
 export abstract class CommandEndpoint<
-    ReqC extends Command,
-    SuccessResC extends Command,
-    FailureResC extends Command
-> extends EndpointWithSuccessFailureRes<SuccessResC, FailureResC> {
+    S extends SagaSession,
+    ReqC extends Command<S>,
+    SuccessResC extends Command<S>,
+    FailureResC extends Command<S>
+> extends EndpointWithSuccessFailureRes<S, SuccessResC, FailureResC> {
     private _reqChannelName: ChannelName;
     private _commandReqCtor: MessageConstructor<ReqC>;
     private _commandRepository: CommandRepository<ReqC, TxContext>;
@@ -123,9 +120,10 @@ export abstract class CommandEndpoint<
 }
 
 export abstract class LocalEndpoint<
-    SuccessResC extends Command,
-    FailureResC extends Command
-> extends EndpointWithSuccessFailureRes<SuccessResC, FailureResC>{
+    S extends SagaSession,
+    SuccessResC extends Command<S>,
+    FailureResC extends Command<S>
+> extends EndpointWithSuccessFailureRes<S, SuccessResC, FailureResC>{
     private _successCommandRepository: CommandRepository<SuccessResC, TxContext>;
     private _failureCommandRepository: CommandRepository<FailureResC, TxContext>;
     
@@ -156,7 +154,8 @@ export abstract class LocalEndpoint<
         return this._failureCommandRepository;
     }
 
-    abstract handle<Tx extends TxContext, S extends saga.session.SagaSession>(
+    // Handle should be able to fix sagaSession passed in as argument...
+    abstract handle<Tx extends TxContext>(
         sagaSession: S,
     ): Executable<Tx>
 }

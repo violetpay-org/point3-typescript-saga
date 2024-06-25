@@ -132,3 +132,15 @@ export abstract class SagaSession extends SagaState {
         this._flagSetupForPending
     }
 }
+
+export class OrderPartialCancelsSagaSession extends SagaSession {
+    private _walletId: string;
+
+    setWalletId(walletId: string) {
+        this._walletId = walletId;
+    }
+
+    getWalletId(): string {
+        return this._walletId;
+    }
+}

@@ -17,9 +17,10 @@ const exampleChannels = {
 export class ExampleRequestChannel extends point3Saga.endpoint.channel.Channel<ExampleRequestCommand> {
     static readonly CHANNEL_NAME = exampleChannels.REQUEST;
 
-    send(command: ExampleRequestCommand): void {
+    send(command: ExampleRequestCommand): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
     getChannelName(): string {
         return exampleChannels.REQUEST;
     }
@@ -28,9 +29,10 @@ export class ExampleRequestChannel extends point3Saga.endpoint.channel.Channel<E
 export class ExampleSuccessResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleSuccessResponse> {
     static readonly CHANNEL_NAME = exampleChannels.SUCCESS_RES;
 
-    send(command: ExampleSuccessResponse): void {
+    send(command: ExampleSuccessResponse): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
     getChannelName(): string {
         return exampleChannels.SUCCESS_RES;
     }
@@ -39,9 +41,10 @@ export class ExampleSuccessResponseChannel extends point3Saga.endpoint.channel.C
 export class ExampleFailureResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleFailureResponse> {
     static readonly CHANNEL_NAME = exampleChannels.FAILURE_RES;
 
-    send(command: ExampleFailureResponse): void {
+    send(command: ExampleFailureResponse): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
     getChannelName(): string {
         return exampleChannels.FAILURE_RES;
     }
@@ -50,9 +53,10 @@ export class ExampleFailureResponseChannel extends point3Saga.endpoint.channel.C
 export class ExampleLocalFailureResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleFailureResponse> {
     static readonly CHANNEL_NAME = exampleChannels.LOCAL_FAILURE_RES;
 
-    send(command: ExampleFailureResponse): void {
+    send(command: ExampleFailureResponse): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
     getChannelName(): string {
         return exampleChannels.LOCAL_FAILURE_RES;
     }
@@ -61,9 +65,10 @@ export class ExampleLocalFailureResponseChannel extends point3Saga.endpoint.chan
 export class ExampleLocalSuccessResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleSuccessResponse> {
     static readonly CHANNEL_NAME = exampleChannels.LOCAL_SUCCESS_RES;
 
-    send(command: ExampleSuccessResponse): void {
+    send(command: ExampleSuccessResponse): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
     getChannelName(): string {
         return exampleChannels.LOCAL_SUCCESS_RES;
     }

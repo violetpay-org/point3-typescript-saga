@@ -8,6 +8,7 @@ import {
 } from "./command";
 
 export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.endpoint.CommandEndpoint<
+    point3Saga.saga.session.SagaSession,
     ExampleRequestCommand,
     ExampleSuccessResponse,
     ExampleFailureResponse
@@ -28,10 +29,11 @@ export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.e
 }
 
 export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga.endpoint.endpoint.LocalEndpoint<
+    point3Saga.saga.session.SagaSession,
     ExampleSuccessResponse,
     ExampleFailureResponse
 > {
-    handle<Tx extends TxContext, S extends point3Saga.saga.session.SagaSession>(sagaSession: S): Executable<Tx> {
+    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.session.SagaSession): Executable<Tx> {
         console.log("Handling saga session", sagaSession.getSagaId());
         return async (tx: Tx) => {
             console.log("Handled saga session", sagaSession.getSagaId());
@@ -54,7 +56,7 @@ export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga
 }
 
 export class AlwaysFailingLocalEndpoint<Tx extends TxContext> extends AlwaysSuccessLocalEndpoint<Tx> {
-    handle<Tx extends TxContext, S extends point3Saga.saga.session.SagaSession>(sagaSession: S): Executable<Tx> {
+    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.session.SagaSession): Executable<Tx> {
         throw new Error("Always fails");
     }
 }
