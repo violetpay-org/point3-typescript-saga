@@ -1,4 +1,4 @@
-import * as point3Saga from "../Saga";
+import * as point3Saga from "../Saga/index";
 import { TxContext } from "../UnitOfWork/main";
 
 import {
@@ -29,9 +29,8 @@ import { InMemoryTxContext } from "../UnitOfWork/inMemory";
 import { InMemoryExampleMessageRepository } from "./repository";
 import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
-import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors";
+import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors/index";
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoint";
-import exp from "constants";
 import { Step } from "../Saga/SagaPlanning/Step";
 
 var successResRepo: InMemoryExampleMessageRepository<ExampleSuccessResponse>;
@@ -40,14 +39,14 @@ var commandRepo: InMemoryExampleMessageRepository<ExampleRequestCommand>;
 
 var sagaRepo: InMemoryExampleSagaSaver;
 var registry: InMemoryExampleSagaRegistry;
-var builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>;
+var builder: point3Saga.api.StepBuilder<InMemoryTxContext>;
 
 function BuildSagaAndRegister<Tx extends TxContext>(
     registry: SagaRegistry<Tx>,
-    builder: point3Saga.api.sagaBuilder.StepBuilder<Tx>,
-    sagaSchema: (builder: point3Saga.api.sagaBuilder.StepBuilder<Tx>) => point3Saga.planning.definition.SagaDefinition<Tx>,
-    sagaRepo: point3Saga.saga.repository.SagaSessionRepository<Tx, ExampleSagaSession>,
-): point3Saga.api.sagaRegistry.AbstractSaga<Tx, ExampleSagaSessionArguments, ExampleSagaSession> {
+    builder: point3Saga.api.StepBuilder<Tx>,
+    sagaSchema: (builder: point3Saga.api.StepBuilder<Tx>) => point3Saga.planning.SagaDefinition<Tx>,
+    sagaRepo: point3Saga.saga.SagaSessionRepository<Tx, ExampleSagaSession>,
+): point3Saga.api.AbstractSaga<Tx, ExampleSagaSessionArguments, ExampleSagaSession> {
     const saga = new ExampleSaga(
         builder,
         sagaSchema,
@@ -70,11 +69,11 @@ describe("SagaOrchestrator", () => {
 
         // builder also holds information about the saga created in each test
         // so it should be reset as well
-        builder = new point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>();
+        builder = new point3Saga.api.StepBuilder<InMemoryTxContext>();
     });
 
     it("should be available to a registered saga", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder.build();
         }
 
@@ -89,7 +88,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should save a saga session when a saga is started", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder.build();
         }
 
@@ -114,7 +113,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should reject multiple sagas with the same name", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder.build();
         }
 
@@ -131,7 +130,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should set saga session state to complete when it has started a saga with an empty saga schema", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder.build();
         }
 
@@ -153,7 +152,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should set saga session state to pending when it has started a saga with a non-empty local action saga schema", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -178,7 +177,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should set saga session state to complete when it has consumed a success response from a local action", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -210,7 +209,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should produce either a success or failure response when a handler inside a local endpoint is invoked", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -237,7 +236,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should produce a failed response when a local endpoint is invoked and the handler inside the endpoint throws an error", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
@@ -262,7 +261,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should set saga session state to failed when it has consumed a failure response from a local action", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
@@ -295,7 +294,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should turn saga session state to completed after consuming a success response in pending state", async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("localStep1")
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -332,7 +331,7 @@ describe("SagaOrchestrator", () => {
         const STEP_1 = "localStep1";
         const STEP_2 = "localStep2";
         
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -383,7 +382,7 @@ describe("SagaOrchestrator", () => {
         const STEP_1 = "localStep1";
         const STEP_2 = "localStep2";
         
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -446,7 +445,7 @@ describe("SagaOrchestrator", () => {
         const STEP_1 = "localStep1";
         const STEP_2 = "localStep2";
         
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -503,7 +502,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should not accept an unrelated message never has produced by the saga", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step("step1")
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -544,7 +543,7 @@ describe("SagaOrchestrator", () => {
     });
 
     it("should raise dead saga session error when trying to relay a message to a saga that has already completed or failed", async () => {
-        const emptySagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder.build();
         }
 
@@ -589,7 +588,7 @@ describe("SagaOrchestrator", () => {
             STEP_5 = "localStep5",
         }
         
-        const localActionSagaSchema = (builder: point3Saga.api.sagaBuilder.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
             return builder
                 .step(Steps.STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))

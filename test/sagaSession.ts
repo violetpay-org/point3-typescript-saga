@@ -1,7 +1,7 @@
-import * as point3Saga from "../Saga";
+import * as point3Saga from "../Saga/index";
 import { Executable, TxContext } from "../UnitOfWork/main";
 
-export class ExampleSagaSessionArguments2 implements point3Saga.saga.session.SagaSessionArguments {
+export class ExampleSagaSessionArguments2 implements point3Saga.saga.SagaSessionArguments {
     private readonly _arg2: string = "arg2";
 
     public getArg2(): string {
@@ -9,7 +9,7 @@ export class ExampleSagaSessionArguments2 implements point3Saga.saga.session.Sag
     }
 }
 
-export class ExampleSagaSessionArguments implements point3Saga.saga.session.SagaSessionArguments {
+export class ExampleSagaSessionArguments implements point3Saga.saga.SagaSessionArguments {
     private readonly _arg1: string = "arg1";
 
     public getArg1(): string {
@@ -17,7 +17,7 @@ export class ExampleSagaSessionArguments implements point3Saga.saga.session.Saga
     }
 }
 
-export class ExampleSagaSession extends point3Saga.saga.session.SagaSession {
+export class ExampleSagaSession extends point3Saga.saga.SagaSession {
     constructor(sagaId: string, arg: ExampleSagaSessionArguments) {
         super(sagaId);
     }
@@ -28,7 +28,7 @@ export class ExampleSagaSession extends point3Saga.saga.session.SagaSession {
 }
 
 
-export class InMemoryExampleSagaSaver implements point3Saga.saga.repository.SagaSessionRepository<
+export class InMemoryExampleSagaSaver implements point3Saga.saga.SagaSessionRepository<
     TxContext,
     ExampleSagaSession
 > {

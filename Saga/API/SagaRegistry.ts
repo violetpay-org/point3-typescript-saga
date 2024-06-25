@@ -1,10 +1,10 @@
 import { TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
 import { SagaOrchestrator } from "./SagaOrchestrator";
-import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors";
+import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors/index";
 
-import { endpoint } from "../Endpoint";
-import { definition } from "../SagaPlanning";
-import * as saga from "../SagaSession";
+import * as endpoint from "../Endpoint/index";
+import * as planning from "../SagaPlanning/index";
+import * as saga from "../SagaSession/index";
 import { randomUUID } from "crypto";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 
@@ -12,11 +12,11 @@ import { Constructor } from "../../common/syntex";
 
 export abstract class AbstractSaga<
     Tx extends TxContext,
-    A extends saga.session.SagaSessionArguments,
-    I extends saga.session.SagaSession
+    A extends saga.SagaSessionArguments,
+    I extends saga.SagaSession
 > {
-    abstract getDefinition(): definition.SagaDefinition<Tx>;
-    abstract getSagaRepository(): saga.repository.SagaSessionRepository<Tx, I>;
+    abstract getDefinition(): planning.SagaDefinition<Tx>;
+    abstract getSagaRepository(): saga.SagaSessionRepository<Tx, I>;
     abstract getName(): string;
     abstract createSession(arg: A): Promise<I>
 
@@ -35,7 +35,12 @@ export abstract class AbstractSaga<
 }
 
 export class SagaRegistry<Tx extends TxContext> {
-    protected sagas: Array<AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>> = [];
+    protected sagas: Array<
+        AbstractSaga<
+            Tx, 
+            saga.SagaSessionArguments, 
+            saga.SagaSession
+        >> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
 
     constructor(orchestrator: SagaOrchestrator<Tx>) {
@@ -46,7 +51,7 @@ export class SagaRegistry<Tx extends TxContext> {
         return this.sagas.some(saga => saga.getName() === sageName);
     }
 
-    public registerSaga(saga: AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>) {
+    public registerSaga(saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>) {
         if (this.hasSagaWithName(saga.getName())) {
             throw ErrDuplicateSaga;
         }
@@ -71,8 +76,8 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public async startSaga<
         Tx extends TxContext,
-        A extends saga.session.SagaSessionArguments,
-        I extends saga.session.SagaSession,
+        A extends saga.SagaSessionArguments,
+        I extends saga.SagaSession,
     >(
         sagaName: string,
         sessionArg: A,

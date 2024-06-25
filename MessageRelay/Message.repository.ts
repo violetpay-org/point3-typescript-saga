@@ -1,19 +1,19 @@
-import { api, endpoint, saga } from "../Saga";
+import { saga, endpoint, api } from "../Saga/index";
 import { AbstractSagaMessageWithOrigin } from "../Saga/Endpoint/CommandEndpoint";
 import { TxContext } from "../UnitOfWork/main";
 
 export class MessageRelayer<Tx extends TxContext> {
     private BATCH_SIZE = 10;
-    private _channelRegistry: api.channelRegistry.ChannelRegistry<Tx>;
+    private _channelRegistry: api.ChannelRegistry<Tx>;
 
-    constructor(channelRegistry: api.channelRegistry.ChannelRegistry<Tx>) {
+    constructor(channelRegistry: api.ChannelRegistry<Tx>) {
         this._channelRegistry = channelRegistry;
     }
 
     private async getRelayingMessages(batchSize: number): Promise<
         Map<
-            endpoint.channel.ChannelName, 
-            AbstractSagaMessageWithOrigin<endpoint.endpoint.Command<saga.session.SagaSession>>[]
+            endpoint.ChannelName, 
+            AbstractSagaMessageWithOrigin<endpoint.Command<saga.SagaSession>>[]
         >
     > {
         if (batchSize <= 0) {
@@ -21,14 +21,14 @@ export class MessageRelayer<Tx extends TxContext> {
         }
 
         const messagesByChannel: Map<
-            endpoint.channel.ChannelName, 
-            AbstractSagaMessageWithOrigin<endpoint.endpoint.Command<saga.session.SagaSession>>[]
+            endpoint.ChannelName, 
+            AbstractSagaMessageWithOrigin<endpoint.Command<saga.SagaSession>>[]
         > = new Map();
 
         for (const channel of this._channelRegistry.getChannels()) {
             const commandRepo = channel.getCommandRepository();
             const messages = await commandRepo.getCommandsFromOutbox(batchSize);
-            const messagesWithOrigin: AbstractSagaMessageWithOrigin<endpoint.endpoint.Command<saga.session.SagaSession>>[] = [];
+            const messagesWithOrigin: AbstractSagaMessageWithOrigin<endpoint.Command<saga.SagaSession>>[] = [];
 
             for (const message of messages) {
                 const messageWithOrigin = channel.parseMessageWithOrigin(message);                
@@ -45,12 +45,12 @@ export class MessageRelayer<Tx extends TxContext> {
     // 성공하는 메시지는 outbox에서 삭제하는 로직이 필요.
     public async relay() {
         const toDeadLettersByChannel: Map<
-            endpoint.channel.ChannelName, 
-            endpoint.endpoint.Command<saga.session.SagaSession>[]
+            endpoint.ChannelName, 
+            endpoint.Command<saga.SagaSession>[]
         > = new Map();
         const toDeleteByChannel: Map<
-            endpoint.channel.ChannelName, 
-            endpoint.endpoint.Command<saga.session.SagaSession>[]
+            endpoint.ChannelName, 
+            endpoint.Command<saga.SagaSession>[]
         > = new Map();
 
         const messagesByChannel = await this.getRelayingMessages(this.BATCH_SIZE);

@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "noImplicitAny": false,
+      "noEmitOnError": true,
+      "noEmit": false,
+      "removeComments": false,
+      "sourceMap": true,
+      "target": "es2015",
+      "outDir": "lib",
+      "declaration": true,
+    },
+    "include": [
+      "./**/*"
+    ]
+}

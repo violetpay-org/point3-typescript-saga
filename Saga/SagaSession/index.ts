@@ -1,3 +1,2 @@
-import * as session from "./SagaSession";
-import * as repository from "./SagaSession.repository";
-export { session, repository } 
+export * from "./SagaSession";
+export * from "./SagaSession.repository";

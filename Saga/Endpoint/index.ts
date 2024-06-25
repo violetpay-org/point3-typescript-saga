@@ -1,4 +1,3 @@
-import * as channel from "./Channel";
-import * as endpoint from "./CommandEndpoint";
-import * as commandRepository from "./Command.repository";
-export { channel, endpoint, commandRepository };
+export * from "./Channel";
+export * from "./CommandEndpoint";
+export * from "./Command.repository";

@@ -1,11 +1,11 @@
 import { Executable, TxContext } from "src/point3-typescript-saga/UnitOfWork/main";
-import { endpoint } from "../Endpoint";
-import { definition } from "../SagaPlanning";
-import { session } from "../SagaSession";
+import * as endpoint from "../Endpoint/index";
+import * as planning from "../SagaPlanning/index";
+import * as saga from "../SagaSession/index";
 
 export interface IStepBuilder<Tx extends TxContext> {
     step(name: string): IInvokableStepBuilder<Tx> & ILocalInvocableStepBuilder<Tx>;
-    build(): definition.SagaDefinition<Tx>;
+    build(): planning.SagaDefinition<Tx>;
 }
 
 export interface ReplyDispatchableStepBuilder<
@@ -21,10 +21,10 @@ export interface MustCompleteStepBuilder<Tx extends TxContext> extends IStepBuil
 
 export interface IInvokableStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {
     invoke(endpoint: endpoint.CommandEndpoint<
-            session.SagaSession, 
-            endpoint.Command<session.SagaSession>, 
-            endpoint.Command<session.SagaSession>, 
-            endpoint.Command<session.SagaSession>
+            saga.SagaSession, 
+            endpoint.Command<saga.SagaSession>, 
+            endpoint.Command<saga.SagaSession>, 
+            endpoint.Command<saga.SagaSession>
         >): AfterInvokationStepBuilder<Tx>;
 }
 
@@ -37,10 +37,10 @@ export interface AfterInvokationStepBuilder<Tx extends TxContext> extends
     MustCompleteStepBuilder<Tx> 
 {
     withCompensation(endpoint: endpoint.CommandEndpoint<
-        session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        saga.SagaSession, 
+        endpoint.Command<saga.SagaSession>, 
+        endpoint.Command<saga.SagaSession>, 
+        endpoint.Command<saga.SagaSession>
     >): IncompensatableStepBuilder<Tx>;
 }
 
@@ -55,9 +55,9 @@ export interface IncompensatableStepBuilder<Tx extends TxContext> extends
 // For Local invocation
 export interface ILocalInvocableStepBuilder<Tx extends TxContext> {
     localInvoke(endpoint: endpoint.LocalEndpoint<
-        session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        saga.SagaSession, 
+        endpoint.Command<saga.SagaSession>, 
+        endpoint.Command<saga.SagaSession>
     >): AfterLocalInvocationStepBuilder<Tx>;
 }
 export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends 
@@ -65,9 +65,9 @@ export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends
     ILocalMustCompleteStepBuilder<Tx>
 {
     withLocalCompensation(endpoint: endpoint.LocalEndpoint<
-        session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        saga.SagaSession, 
+        endpoint.Command<saga.SagaSession>, 
+        endpoint.Command<saga.SagaSession>
     >): IStepBuilder<Tx>;
 }
 export interface ILocalMustCompleteStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {

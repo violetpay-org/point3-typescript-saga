@@ -1,10 +1,10 @@
 import { TxContext, UnitOfWork, UnitOfWorkFactory } from "src/point3-typescript-saga/UnitOfWork/main";
 import { AbstractSaga } from "./SagaRegistry";
-import { ErrChannelNotFound, ErrDeadSagaSession, ErrStepNotFound } from "../Errors";
+import { ErrChannelNotFound, ErrDeadSagaSession, ErrStepNotFound } from "../Errors/index";
 
-import { endpoint } from "../Endpoint";
-import { definition, step, action } from "../SagaPlanning";
-import * as saga from "../SagaSession";
+import * as endpoint from "../Endpoint/index";
+import * as planning from "../SagaPlanning/index";
+import * as saga from "../SagaSession/index";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 import { ChannelName } from "../Endpoint/Channel";
 
@@ -15,7 +15,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         this.unitOfWorkFactory = unitOfWorkFactory;
     }
 
-    public async startSaga<A extends saga.session.SagaSessionArguments, I extends saga.session.SagaSession>(
+    public async startSaga<A extends saga.SagaSessionArguments, I extends saga.SagaSession>(
         sagaSessionArg: A,
         saga: AbstractSaga<Tx, A, I>, 
     ) {
@@ -50,7 +50,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     }
 
     public async orchestrate(
-        saga: AbstractSaga<Tx, saga.session.SagaSessionArguments, saga.session.SagaSession>, 
+        saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>, 
         messageWithOrigin: endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>
     ) {
         const message = messageWithOrigin.getSagaMessage();
@@ -99,12 +99,12 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         await unitOfWork.Commit();
     }
 
-    private async invocationResponseHandler<I extends saga.session.SagaSession>(
+    private async invocationResponseHandler<I extends saga.SagaSession>(
         sagaSession: I,
         originChan: ChannelName,
         message: endpoint.AbstractSagaMessage,
-        sagaStep: step.Step<Tx>,
-        sagaDefinition: definition.SagaDefinition<Tx>,
+        sagaStep: planning.Step<Tx>,
+        sagaDefinition: planning.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const invocationAction = sagaStep.invocationAction;
@@ -147,8 +147,8 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private isFailureInvocationResponse(
         originChan: ChannelName,
         invocationAction: 
-            action.InvocationSagaAction<Tx, endpoint.Command<saga.session.SagaSession>> | 
-            action.LocalInvocationSagaAction<Tx>
+            planning.InvocationSagaAction<Tx, endpoint.Command<saga.SagaSession>> | 
+            planning.LocalInvocationSagaAction<Tx>
     ): boolean {
         const originChannelName = originChan;
         const invocatedAt = invocationAction.invocationDestination;
@@ -164,9 +164,9 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         throw ErrChannelNotFound;
     }
 
-    private async retryInvocation<I extends saga.session.SagaSession>(
+    private async retryInvocation<I extends saga.SagaSession>(
         sagaSession: I,
-        currentStep: step.Step<Tx>,
+        currentStep: planning.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) { 
         if (!currentStep.mustComplete()) {
@@ -178,8 +178,8 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     }
 
     private async invokeStep(
-        sagaSession: saga.session.SagaSession,
-        currentStep: step.Step<Tx>,
+        sagaSession: saga.SagaSession,
+        currentStep: planning.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const command = await currentStep.invocationAction.executeInvocation(sagaSession);
@@ -187,10 +187,10 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         sagaSession.setPendingState();
     }
 
-    private async stepForwardAndInvoke<I extends saga.session.SagaSession>(
+    private async stepForwardAndInvoke<I extends saga.SagaSession>(
         sagaSession: I,
-        currentStep: step.Step<Tx>,
-        sagaDefinition: definition.SagaDefinition<Tx>,
+        currentStep: planning.Step<Tx>,
+        sagaDefinition: planning.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const currentStepName = currentStep.getStepName();
@@ -217,12 +217,12 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         );
     }
 
-    private async compensationResponseHandler<I extends saga.session.SagaSession>(
+    private async compensationResponseHandler<I extends saga.SagaSession>(
         sagaSession: I,
         originChan: ChannelName,
         message: endpoint.AbstractSagaMessage,
-        sagaStep: step.Step<Tx>,
-        sagaDefinition: definition.SagaDefinition<Tx>,
+        sagaStep: planning.Step<Tx>,
+        sagaDefinition: planning.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const compensationAction = sagaStep.compensationAction;
@@ -248,8 +248,8 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     private isFailureCompensationResponse(
         originChan: ChannelName,
         compensationAction: 
-            action.CompensationSagaAction<Tx, endpoint.Command<saga.session.SagaSession>> |
-            action.LocalCompensationSagaAction<Tx>
+            planning.CompensationSagaAction<Tx, endpoint.Command<saga.SagaSession>> |
+            planning.LocalCompensationSagaAction<Tx>
     ): boolean {
         const originChannelName = originChan;
         const compensatedAt = compensationAction.compensationDestination;
@@ -265,9 +265,9 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         throw ErrChannelNotFound;
     }
 
-    private async retryCompensation<I extends saga.session.SagaSession>(
+    private async retryCompensation<I extends saga.SagaSession>(
         sagaSession: I,
-        currentStep: step.Step<Tx>,
+        currentStep: planning.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         sagaSession.setCompensationState();
@@ -275,10 +275,10 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         return;
     }
 
-    private async stepBackwardAndStartCompensation<I extends saga.session.SagaSession>(
+    private async stepBackwardAndStartCompensation<I extends saga.SagaSession>(
         sagaSession: I,
-        currentStep: step.Step<Tx>,
-        sagaDefinition: definition.SagaDefinition<Tx>,
+        currentStep: planning.Step<Tx>,
+        sagaDefinition: planning.SagaDefinition<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const currentStepName = currentStep.getStepName();
@@ -308,8 +308,8 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
     }
 
     private async compensateStep(
-        sagaSession: saga.session.SagaSession,
-        currentStep: step.Step<Tx>,
+        sagaSession: saga.SagaSession,
+        currentStep: planning.Step<Tx>,
         unitOfWork: UnitOfWork<Tx>
     ) {
         const command = await currentStep.compensationAction.executeCompensation(sagaSession);

@@ -1,4 +1,4 @@
-import * as point3Saga from "../Saga";
+import * as point3Saga from "../Saga/index";
 import { Executable, TxContext } from "../UnitOfWork/main";
 import { ExampleFailureResponseChannel, ExampleLocalFailureResponseChannel, ExampleLocalSuccessResponseChannel, ExampleRequestChannel, ExampleSuccessResponseChannel } from "./channel";
 import {
@@ -7,14 +7,14 @@ import {
     ExampleFailureResponse,
 } from "./command";
 
-export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.endpoint.CommandEndpoint<
-    point3Saga.saga.session.SagaSession,
+export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.CommandEndpoint<
+    point3Saga.saga.SagaSession,
     ExampleRequestCommand,
     ExampleSuccessResponse,
     ExampleFailureResponse
 > {
     constructor(
-        commandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleRequestCommand, Tx>,
+        commandRepository: point3Saga.endpoint.CommandRepository<ExampleRequestCommand, Tx>,
     ) {
         super(
             ExampleRequestChannel.CHANNEL_NAME,
@@ -28,12 +28,12 @@ export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.e
     }
 }
 
-export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga.endpoint.endpoint.LocalEndpoint<
-    point3Saga.saga.session.SagaSession,
+export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga.endpoint.LocalEndpoint<
+    point3Saga.saga.SagaSession,
     ExampleSuccessResponse,
     ExampleFailureResponse
 > {
-    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.session.SagaSession): Executable<Tx> {
+    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.SagaSession): Executable<Tx> {
         console.log("Handling saga session", sagaSession.getSagaId());
         return async (tx: Tx) => {
             console.log("Handled saga session", sagaSession.getSagaId());
@@ -41,8 +41,8 @@ export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga
     }
     
     constructor(
-        successCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleSuccessResponse, Tx>,
-        failureCommandRepository: point3Saga.endpoint.commandRepository.CommandRepository<ExampleFailureResponse, Tx>,
+        successCommandRepository: point3Saga.endpoint.CommandRepository<ExampleSuccessResponse, Tx>,
+        failureCommandRepository: point3Saga.endpoint.CommandRepository<ExampleFailureResponse, Tx>,
     ) {
         super(
             ExampleLocalSuccessResponseChannel.CHANNEL_NAME,
@@ -56,7 +56,7 @@ export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga
 }
 
 export class AlwaysFailingLocalEndpoint<Tx extends TxContext> extends AlwaysSuccessLocalEndpoint<Tx> {
-    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.session.SagaSession): Executable<Tx> {
+    handle<Tx extends TxContext>(sagaSession: point3Saga.saga.SagaSession): Executable<Tx> {
         throw new Error("Always fails");
     }
 }

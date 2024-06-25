@@ -1,5 +1,4 @@
-import * as sagaBuilder from "./SagaBuilder";
-import * as orchestrator from "./SagaOrchestrator";
-import * as sagaRegistry from "./SagaRegistry";
-import * as channelRegistry from "./ChannelRegistry";
-export { sagaBuilder, orchestrator, channelRegistry, sagaRegistry };
+export * from "./SagaBuilder";
+export * from "./SagaOrchestrator";
+export * from "./SagaRegistry";
+export *  from "./ChannelRegistry";

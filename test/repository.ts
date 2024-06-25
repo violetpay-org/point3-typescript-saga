@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import * as point3Saga from '../Saga'
+import * as point3Saga from '../Saga/index'
 import { Executable, TxContext } from '../UnitOfWork/main';
 
-export class InMemoryExampleMessageRepository<M extends point3Saga.endpoint.endpoint.Command<point3Saga.saga.session.SagaSession>> implements point3Saga.endpoint.commandRepository.CommandRepository<M, TxContext> {
+export class InMemoryExampleMessageRepository<M extends point3Saga.endpoint.Command<point3Saga.saga.SagaSession>> implements point3Saga.endpoint.CommandRepository<M, TxContext> {
     private readonly _commands: Map<string, M> = new Map();
     private readonly _deadLetters: Map<string, M> = new Map();
     private readonly _outbox: Map<string, M> = new Map();

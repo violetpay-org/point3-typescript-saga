@@ -1,4 +1,4 @@
-import * as point3Saga from "../Saga";
+import * as point3Saga from "../Saga/index";
 import { ChannelName } from "../Saga/Endpoint/Channel";
 import {
     ExampleRequestCommand,
@@ -14,7 +14,7 @@ const exampleChannels = {
     LOCAL_FAILURE_RES: "ExampleSagaFailureLocalChan" as ChannelName,
 };
 
-export class ExampleRequestChannel extends point3Saga.endpoint.channel.Channel<ExampleRequestCommand> {
+export class ExampleRequestChannel extends point3Saga.endpoint.Channel<ExampleRequestCommand> {
     static readonly CHANNEL_NAME = exampleChannels.REQUEST;
 
     send(command: ExampleRequestCommand): Promise<void> {
@@ -26,7 +26,7 @@ export class ExampleRequestChannel extends point3Saga.endpoint.channel.Channel<E
     }
 }
 
-export class ExampleSuccessResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleSuccessResponse> {
+export class ExampleSuccessResponseChannel extends point3Saga.endpoint.Channel<ExampleSuccessResponse> {
     static readonly CHANNEL_NAME = exampleChannels.SUCCESS_RES;
 
     send(command: ExampleSuccessResponse): Promise<void> {
@@ -38,7 +38,7 @@ export class ExampleSuccessResponseChannel extends point3Saga.endpoint.channel.C
     }
 }
 
-export class ExampleFailureResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleFailureResponse> {
+export class ExampleFailureResponseChannel extends point3Saga.endpoint.Channel<ExampleFailureResponse> {
     static readonly CHANNEL_NAME = exampleChannels.FAILURE_RES;
 
     send(command: ExampleFailureResponse): Promise<void> {
@@ -50,7 +50,7 @@ export class ExampleFailureResponseChannel extends point3Saga.endpoint.channel.C
     }
 }
 
-export class ExampleLocalFailureResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleFailureResponse> {
+export class ExampleLocalFailureResponseChannel extends point3Saga.endpoint.Channel<ExampleFailureResponse> {
     static readonly CHANNEL_NAME = exampleChannels.LOCAL_FAILURE_RES;
 
     send(command: ExampleFailureResponse): Promise<void> {
@@ -62,7 +62,7 @@ export class ExampleLocalFailureResponseChannel extends point3Saga.endpoint.chan
     }
 }
 
-export class ExampleLocalSuccessResponseChannel extends point3Saga.endpoint.channel.Channel<ExampleSuccessResponse> {
+export class ExampleLocalSuccessResponseChannel extends point3Saga.endpoint.Channel<ExampleSuccessResponse> {
     static readonly CHANNEL_NAME = exampleChannels.LOCAL_SUCCESS_RES;
 
     send(command: ExampleSuccessResponse): Promise<void> {
