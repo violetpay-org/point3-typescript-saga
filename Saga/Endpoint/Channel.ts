@@ -2,7 +2,7 @@ import { TxContext } from "../../UnitOfWork/main";
 import * as saga from "../SagaSession/index";
 
 import { Command } from "./CommandEndpoint";
-import { CommandRepository } from "./Command.repository";
+import { CommandRepository } from "./CommandRepository";
 import { AbstractSagaMessageWithOrigin } from "./CommandEndpoint";
 
 export type ChannelName = string;

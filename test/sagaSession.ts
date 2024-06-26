@@ -21,10 +21,6 @@ export class ExampleSagaSession extends point3Saga.saga.SagaSession {
     constructor(sagaId: string, arg: ExampleSagaSessionArguments) {
         super(sagaId);
     }
-    
-    public static create(sagaId: string, arg: ExampleSagaSessionArguments): ExampleSagaSession {
-        return new ExampleSagaSession(sagaId, arg);
-    }
 }
 
 

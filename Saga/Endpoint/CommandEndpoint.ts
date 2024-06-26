@@ -1,5 +1,5 @@
 import { ChannelName } from "./Channel";
-import { CommandRepository } from "./Command.repository";
+import { CommandRepository } from "./CommandRepository";
 import { Executable, TxContext } from "../../UnitOfWork/main";
 import { randomUUID } from "crypto";
 import { SagaSession } from "../SagaSession/SagaSession";

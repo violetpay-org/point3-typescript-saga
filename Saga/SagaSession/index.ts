@@ -1,2 +1,2 @@
 export * from "./SagaSession";
-export * from "./SagaSession.repository";
+export * from "./SagaSessionRepository";
