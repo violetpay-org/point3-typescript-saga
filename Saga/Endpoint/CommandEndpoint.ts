@@ -41,8 +41,8 @@ export abstract class Command<S extends SagaSession> implements AbstractSagaMess
     }
 }
 
-export interface MessageConstructor<C extends AbstractSagaMessage> {
-    new (sagaSession: SagaSession): C;
+export interface MessageConstructor<C extends AbstractSagaMessage, S extends SagaSession> {
+    new (sagaSession: S): C;
 }
 export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
 
@@ -54,8 +54,8 @@ export abstract class EndpointWithSuccessFailureRes<
     constructor(
         private _successResChannelName: ChannelName,
         private _failureResChannelName: ChannelName,
-        private _commandSuccessResCtor: MessageConstructor<SuccessResC>,
-        private _commandFailureResCtor: MessageConstructor<FailureResC>,
+        private _commandSuccessResCtor: MessageConstructor<SuccessResC, S>,
+        private _commandFailureResCtor: MessageConstructor<FailureResC, S>,
     ) {}
 
     public getSuccessResChannelName(): string {
@@ -66,11 +66,11 @@ export abstract class EndpointWithSuccessFailureRes<
         return this._failureResChannelName;
     }
 
-    public getCommandSuccessResCtor(): MessageConstructor<SuccessResC> {
+    public getCommandSuccessResCtor(): MessageConstructor<SuccessResC, S> {
         return this._commandSuccessResCtor;
     }
 
-    public getCommandFailureResCtor(): MessageConstructor<FailureResC> {
+    public getCommandFailureResCtor(): MessageConstructor<FailureResC, S> {
         return this._commandFailureResCtor;
     }
 }
@@ -82,16 +82,16 @@ export abstract class CommandEndpoint<
     FailureResC extends Command<S>
 > extends EndpointWithSuccessFailureRes<S, SuccessResC, FailureResC> {
     private _reqChannelName: ChannelName;
-    private _commandReqCtor: MessageConstructor<ReqC>;
+    private _commandReqCtor: MessageConstructor<ReqC, S>;
     private _commandRepository: CommandRepository<ReqC, TxContext>;
 
     constructor(
         reqChannelName: ChannelName,
         successResChannelName: ChannelName,
         failureResChannelName: ChannelName,
-        commandReqCtor: MessageConstructor<ReqC>,
-        commandSuccessResCtor: MessageConstructor<SuccessResC>,
-        commandFailureResCtor: MessageConstructor<FailureResC>,
+        commandReqCtor: MessageConstructor<ReqC, S>,
+        commandSuccessResCtor: MessageConstructor<SuccessResC, S>,
+        commandFailureResCtor: MessageConstructor<FailureResC, S>,
         commandRepository: CommandRepository<ReqC, TxContext>,
     ) {
         super(
@@ -110,7 +110,7 @@ export abstract class CommandEndpoint<
         return this._reqChannelName;
     }
 
-    public getCommandReqCtor(): MessageConstructor<ReqC> {
+    public getCommandReqCtor(): MessageConstructor<ReqC, S> {
         return this._commandReqCtor;
     }
 
@@ -130,8 +130,8 @@ export abstract class LocalEndpoint<
     constructor(
         successResChannelName: ChannelName,
         failureResChannelName: ChannelName,
-        commandSuccessResCtor: MessageConstructor<SuccessResC>,
-        commandFailureResCtor: MessageConstructor<FailureResC>,
+        commandSuccessResCtor: MessageConstructor<SuccessResC, S>,
+        commandFailureResCtor: MessageConstructor<FailureResC, S>,
         successCommandRepository: CommandRepository<SuccessResC, TxContext>,
         failureCommandRepository: CommandRepository<FailureResC, TxContext>,
     ) {
