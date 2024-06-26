@@ -1,15 +1,14 @@
 import { TxContext } from "../../UnitOfWork/main";
 import * as endpoint from "../Endpoint/index";
-import * as saga from "../SagaSession/index";
 
 export class ChannelRegistry<Tx extends TxContext> {
     protected channels: Map<
         endpoint.ChannelName, 
-        endpoint.SavableCommandChannel<endpoint.Command<saga.SagaSession>, Tx>
+        endpoint.SavableMessageChannel<Tx>
     >;
 
     public registerChannel(
-        channel: endpoint.SavableCommandChannel<endpoint.Command<saga.SagaSession>, Tx>
+        channel: endpoint.SavableMessageChannel<Tx>
     ) {
         if (this.hasChannelWithName(channel.getChannelName())) {
             throw new Error(`Channel with name ${channel.getChannelName()} already exists`);
@@ -22,7 +21,7 @@ export class ChannelRegistry<Tx extends TxContext> {
         return this.channels.has(channelName);
     }
 
-    public getChannelByName(channelName: endpoint.ChannelName): endpoint.SavableCommandChannel<endpoint.Command<saga.SagaSession>, Tx> {
+    public getChannelByName(channelName: endpoint.ChannelName): endpoint.SavableMessageChannel<Tx> {
         if (!this.hasChannelWithName(channelName)) {
             throw new Error(`Channel with name ${channelName} does not exist`);
         }
@@ -30,7 +29,7 @@ export class ChannelRegistry<Tx extends TxContext> {
         return this.channels.get(channelName);
     }
 
-    public getChannels(): endpoint.SavableCommandChannel<endpoint.Command<saga.SagaSession>, Tx>[] {
+    public getChannels(): endpoint.SavableMessageChannel<Tx>[] {
         return Array.from(this.channels.values());
     }
 }

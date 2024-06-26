@@ -1,8 +1,10 @@
 import { randomUUID } from 'crypto';
-import * as point3Saga from '../Saga/index'
+import { endpoint, saga } from '../Saga/index'
 import { Executable, TxContext } from '../UnitOfWork/main';
 
-export class InMemoryExampleMessageRepository<M extends point3Saga.endpoint.Command<point3Saga.saga.SagaSession>> implements point3Saga.endpoint.CommandRepository<M, TxContext> {
+export class InMemoryCommandRepository<
+    M extends endpoint.Command<saga.SagaSession, endpoint.CommandArguments>
+> implements endpoint.CommandRepository<M, TxContext> {
     private readonly _commands: Map<string, M> = new Map();
     private readonly _deadLetters: Map<string, M> = new Map();
     private readonly _outbox: Map<string, M> = new Map();
@@ -13,15 +15,15 @@ export class InMemoryExampleMessageRepository<M extends point3Saga.endpoint.Comm
         }
     }
 
-    saveDeadLetters(command: M[]): Executable<TxContext> {
+    saveDeadLetters(commands: M[]): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
-    deleteCommands(commands: M[]): Executable<TxContext> {
+    deleteCommands(messageId: string): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
-    deleteDeadLetters(commands: M[]): Executable<TxContext> {
+    deleteDeadLetters(messageIds: string[]): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
@@ -32,6 +34,38 @@ export class InMemoryExampleMessageRepository<M extends point3Saga.endpoint.Comm
     getCommandsFromDeadLetter(batchSize: number): Promise<M[]> {
         throw new Error('Method not implemented.');
     }
+
+    // For testing purposes only
+    getCommands(): IterableIterator<M> {
+        return this._outbox.values();
+    }
+    getCommandsAsMap(): Map<string, M> {
+        return this._outbox;
+    }
+}
+
+export class InMemoryResponseRepository<
+    M extends endpoint.Response
+> implements endpoint.ResponseRepository<M, TxContext> {
+    private readonly _outbox: Map<string, M> = new Map();
+
+    saveResponse(response: M): Executable<TxContext> {
+        return async (tx: TxContext) => {
+            this._outbox.set(randomUUID(), response);
+        }
+    }
+
+    saveDeadLetters(responseRecords: M[]): Executable<TxContext> {
+        throw new Error('Method not implemented.');
+    }
+
+    deleteResponses(messageId: string): Executable<TxContext> {
+        throw new Error('Method not implemented.');
+    }
+
+    getResponsesFromOutbox(batchSize: number): Promise<M[]> {
+        throw new Error('Method not implemented.');
+    };
 
     // For testing purposes only
     getCommands(): IterableIterator<M> {

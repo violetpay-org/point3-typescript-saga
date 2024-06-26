@@ -82,9 +82,9 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     
     public withCompensation(endpoint: endpoint.CommandEndpoint<
         session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        endpoint.Command<session.SagaSession, endpoint.CommandArguments>, 
+        endpoint.Response, 
+        endpoint.Response
     >): stepBuilder.IncompensatableStepBuilder<Tx> {
         this._currentStep.compensationAction = new planning.CompensationSagaAction(
             endpoint.getCommandRepository(),
@@ -95,9 +95,9 @@ class InvokableStepBuilder<Tx extends TxContext> extends
 
     public invoke(endpoint: endpoint.CommandEndpoint<
         session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        endpoint.Command<session.SagaSession, endpoint.CommandArguments>, 
+        endpoint.Response, 
+        endpoint.Response
     >): stepBuilder.AfterInvokationStepBuilder<Tx> {
         this._currentStep.invocationAction = new planning.InvocationSagaAction(
             endpoint.getCommandRepository(),
@@ -119,8 +119,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     // For Local invocation
     public localInvoke(endpoint: endpoint.LocalEndpoint<
         session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >): stepBuilder.AfterLocalInvocationStepBuilder<Tx> {
         this._currentStep.invocationAction = new planning.LocalInvocationSagaAction(
             endpoint,
@@ -130,8 +130,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
 
     public withLocalCompensation(endpoint: endpoint.LocalEndpoint<
         session.SagaSession, 
-        endpoint.Command<session.SagaSession>, 
-        endpoint.Command<session.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >): stepBuilder.IStepBuilder<Tx> {
         this._currentStep.compensationAction = new planning.LocalCompensationSagaAction(
             endpoint,

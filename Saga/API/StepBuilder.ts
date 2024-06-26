@@ -22,9 +22,9 @@ export interface MustCompleteStepBuilder<Tx extends TxContext> extends IStepBuil
 export interface IInvokableStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {
     invoke(endpoint: endpoint.CommandEndpoint<
             saga.SagaSession, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>
+            endpoint.Command<saga.SagaSession, endpoint.CommandArguments>, 
+            endpoint.Response, 
+            endpoint.Response
         >): AfterInvokationStepBuilder<Tx>;
 }
 
@@ -38,9 +38,9 @@ export interface AfterInvokationStepBuilder<Tx extends TxContext> extends
 {
     withCompensation(endpoint: endpoint.CommandEndpoint<
         saga.SagaSession, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Command<saga.SagaSession, endpoint.CommandArguments>, 
+        endpoint.Response, 
+        endpoint.Response
     >): IncompensatableStepBuilder<Tx>;
 }
 
@@ -56,8 +56,8 @@ export interface IncompensatableStepBuilder<Tx extends TxContext> extends
 export interface ILocalInvocableStepBuilder<Tx extends TxContext> {
     localInvoke(endpoint: endpoint.LocalEndpoint<
         saga.SagaSession, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >): AfterLocalInvocationStepBuilder<Tx>;
 }
 export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends 
@@ -66,8 +66,8 @@ export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends
 {
     withLocalCompensation(endpoint: endpoint.LocalEndpoint<
         saga.SagaSession, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >): IStepBuilder<Tx>;
 }
 export interface ILocalMustCompleteStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {

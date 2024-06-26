@@ -1,39 +1,44 @@
-import * as point3Saga from "../Saga/index";
+import { endpoint, saga } from "../Saga/index";
 
 enum ExampleSagaResponseStatus {
     Success = "Success",
     Failure = "Failure"
 }
-
-export class ExampleRequestCommand extends point3Saga.endpoint.Command<point3Saga.saga.SagaSession> {    
+export class ExampleRequestCommandArguments extends endpoint.CommandArguments {
     constructor(
-        sagaSession?: point3Saga.saga.SagaSession,
-        id?: string
+        sagaId: string,
+        id: string,
     ) {
-        super(sagaSession, id);
+        super(
+            sagaId,
+            id
+        );
+    }
+}
+export class ExampleRequestCommand extends endpoint.Command<saga.SagaSession, endpoint.CommandArguments> {    
+    constructor(
+        args?: saga.SagaSession | endpoint.CommandArguments,
+    ) {
+        super(args);
     }
 }
 
-export class ExampleSuccessResponse extends point3Saga.endpoint.Command<point3Saga.saga.SagaSession> {
+export class ExampleSuccessResponse extends endpoint.Response {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Success;
 
     constructor(
-        sagaSession?: point3Saga.saga.SagaSession,
-        id?: string
+        record: Record<string, string>
     ) {
-        super(sagaSession, id);
+        super(record);
     }
 }
 
-export class ExampleFailureResponse extends point3Saga.endpoint.Command<point3Saga.saga.SagaSession> {
+export class ExampleFailureResponse extends endpoint.Response {
     private readonly _responseStatus: ExampleSagaResponseStatus = ExampleSagaResponseStatus.Failure;
     
     constructor(
-        sagaSession?: point3Saga.saga.SagaSession,
-        id?: string
+        record: Record<string, string>
     ) {
-        super(sagaSession, id);
+        super(record);
     }
 }
-
-export type ExampleMessage = point3Saga.endpoint.Command<point3Saga.saga.SagaSession>;

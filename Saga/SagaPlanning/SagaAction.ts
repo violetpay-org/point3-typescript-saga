@@ -6,15 +6,15 @@ import { Executable, TxContext, BaseCombineExecutable } from "../../UnitOfWork/m
 export class LocalInvocationSagaAction<Tx extends TxContext> {
     invocationDestination: endpoint.LocalEndpoint<
         saga.SagaSession, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >;
 
     constructor(
         endpoint: endpoint.LocalEndpoint<
             saga.SagaSession, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>
+            endpoint.Response, 
+            endpoint.Response
         >
     ) {
         this.invocationDestination = endpoint;
@@ -22,18 +22,18 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
 
     public async executeInvocation<S extends saga.SagaSession>(sagaSession: S): Promise<Executable<Tx>> {
         try {
-            const handledDataSaver = this.invocationDestination.handle<Tx>(sagaSession);
-            const successResCommand = new (this.invocationDestination.getCommandSuccessResCtor())(sagaSession);
-            const successResCommandSaver = this.invocationDestination.getSuccessCommandRepository().saveCommand(successResCommand);
+            const handledDataSaver = await this.invocationDestination.handle<Tx>(sagaSession);
+            const successRes = new (this.invocationDestination.getCommandSuccessResCtor())({sagaId: sagaSession.getSagaId()});
+            const successResSaver = this.invocationDestination.getSuccessResponseRepository().saveResponse(successRes);
             
             return BaseCombineExecutable(
                 handledDataSaver,
-                successResCommandSaver
+                successResSaver
             );            
         } catch (e) {
-            const failureResCommand = new (this.invocationDestination.getCommandFailureResCtor())(sagaSession);
-            const failureResCommandSaver = this.invocationDestination.getFailureCommandRepository().saveCommand(failureResCommand);
-            return failureResCommandSaver;
+            const failureRes = new (this.invocationDestination.getCommandFailureResCtor())({sagaId: sagaSession.getSagaId()});
+            const failureResSaver = this.invocationDestination.getFailureResponseRepository().saveResponse(failureRes);
+            return failureResSaver;
         }
     }
 }
@@ -41,15 +41,15 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
 export class LocalCompensationSagaAction<Tx extends TxContext> {
     compensationDestination: endpoint.LocalEndpoint<
         saga.SagaSession, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response,
+        endpoint.Response
     >;
 
     constructor(
         endpoint: endpoint.LocalEndpoint<
             saga.SagaSession, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>
+            endpoint.Response, 
+            endpoint.Response
         >
     ) {
         this.compensationDestination = endpoint;
@@ -57,31 +57,31 @@ export class LocalCompensationSagaAction<Tx extends TxContext> {
 
     public async executeCompensation<S extends saga.SagaSession>(sagaSession: S): Promise<Executable<Tx>> {
         try {
-            const handledDataSaver = this.compensationDestination.handle<Tx>(sagaSession);
-            const successResCommand = new (this.compensationDestination.getCommandSuccessResCtor())(sagaSession);
-            const successResCommandSaver = this.compensationDestination.getSuccessCommandRepository().saveCommand(successResCommand);
+            const handledDataSaver = await this.compensationDestination.handle<Tx>(sagaSession);
+            const successRes = new (this.compensationDestination.getCommandSuccessResCtor())({});
+            const successResSaver = this.compensationDestination.getSuccessResponseRepository().saveResponse(successRes);
             
             return BaseCombineExecutable(
                 handledDataSaver,
-                successResCommandSaver
+                successResSaver
             );            
         } catch (e) {
-            const failureResCommand = new (this.compensationDestination.getCommandFailureResCtor())(sagaSession);
-            const failureResCommandSaver = this.compensationDestination.getFailureCommandRepository().saveCommand(failureResCommand);
-            return failureResCommandSaver;
+            const failureRes = new (this.compensationDestination.getCommandFailureResCtor())({});
+            const failureResSaver = this.compensationDestination.getFailureResponseRepository().saveResponse(failureRes);
+            return failureResSaver;
         }
     }
 }
 export class InvocationSagaAction<
     Tx extends TxContext,
-    InvocationCommand extends endpoint.Command<saga.SagaSession>
+    InvocationCommand extends endpoint.Command<saga.SagaSession, endpoint.CommandArguments>
 > {
     protected commandRepository: endpoint.CommandRepository<InvocationCommand, Tx>;
     invocationDestination: endpoint.CommandEndpoint<
         saga.SagaSession, 
         InvocationCommand, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >;
 
     constructor(
@@ -89,8 +89,8 @@ export class InvocationSagaAction<
         endpoint: endpoint.CommandEndpoint<
             saga.SagaSession, 
             InvocationCommand, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>
+            endpoint.Response, 
+            endpoint.Response
         >
     ) {
         this.commandRepository = commandRepository;
@@ -105,14 +105,14 @@ export class InvocationSagaAction<
 
 export class CompensationSagaAction<
     Tx extends TxContext,
-    CompensationCommand extends endpoint.Command<saga.SagaSession>
+    CompensationCommand extends endpoint.Command<saga.SagaSession, endpoint.CommandArguments>
 > {
     protected commandRepository: endpoint.CommandRepository<CompensationCommand, Tx>;
     compensationDestination: endpoint.CommandEndpoint<
         saga.SagaSession, 
         CompensationCommand, 
-        endpoint.Command<saga.SagaSession>, 
-        endpoint.Command<saga.SagaSession>
+        endpoint.Response, 
+        endpoint.Response
     >;
 
     constructor(
@@ -120,8 +120,8 @@ export class CompensationSagaAction<
         endpoint: endpoint.CommandEndpoint<
             saga.SagaSession, 
             CompensationCommand, 
-            endpoint.Command<saga.SagaSession>, 
-            endpoint.Command<saga.SagaSession>
+            endpoint.Response, 
+            endpoint.Response
         >
     ) {
         this.commandRepository = commandRepository;

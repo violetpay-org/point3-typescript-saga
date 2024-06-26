@@ -26,16 +26,19 @@ import {
 } from "./saga";
 import { InMemoryExampleSagaRegistry } from "./registry";
 import { InMemoryTxContext } from "../UnitOfWork/inMemory";
-import { InMemoryExampleMessageRepository } from "./repository";
+import { 
+    InMemoryCommandRepository, 
+    InMemoryResponseRepository 
+} from "./repository";
 import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
 import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors/index";
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoint";
 import { Step } from "../Saga/SagaPlanning/Step";
 
-var successResRepo: InMemoryExampleMessageRepository<ExampleSuccessResponse>;
-var failureResRepo: InMemoryExampleMessageRepository<ExampleFailureResponse>;
-var commandRepo: InMemoryExampleMessageRepository<ExampleRequestCommand>;
+var successResRepo: InMemoryResponseRepository<ExampleSuccessResponse>;
+var failureResRepo: InMemoryResponseRepository<ExampleFailureResponse>;
+var commandRepo: InMemoryCommandRepository<ExampleRequestCommand>;
 
 var sagaRepo: InMemoryExampleSagaSaver;
 var registry: InMemoryExampleSagaRegistry;
@@ -61,9 +64,9 @@ function BuildSagaAndRegister<Tx extends TxContext>(
 describe("SagaOrchestrator", () => {
     beforeEach(() => {
         // Reset all repositories before each test
-        successResRepo = new InMemoryExampleMessageRepository<ExampleSuccessResponse>();
-        failureResRepo = new InMemoryExampleMessageRepository<ExampleFailureResponse>();
-        commandRepo = new InMemoryExampleMessageRepository<ExampleRequestCommand>();
+        successResRepo = new InMemoryResponseRepository<ExampleSuccessResponse>();
+        failureResRepo = new InMemoryResponseRepository<ExampleFailureResponse>();
+        commandRepo = new InMemoryCommandRepository<ExampleRequestCommand>();
         sagaRepo = new InMemoryExampleSagaSaver();
         registry = new InMemoryExampleSagaRegistry();
 
@@ -202,7 +205,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         expect(sagaSessions[0].isCompleted()).toBeTruthy();
@@ -287,7 +292,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalFailureResponseChannel()
-                .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleFailureResponse({
+                        "sagaId": sagaSession.getSagaId()
+                }))
         );
 
         expect(sagaSessions[0].isFailed()).toBeTruthy();
@@ -320,7 +327,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -360,7 +369,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -370,7 +381,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -413,7 +426,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -423,7 +438,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalFailureResponseChannel()
-                .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleFailureResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -433,7 +450,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -477,7 +496,9 @@ describe("SagaOrchestrator", () => {
 
         await registry.consumeEvent(
             new ExampleLocalSuccessResponseChannel()
-                .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                .parseMessageWithOrigin(new ExampleSuccessResponse({
+                    "sagaId": sagaSession.getSagaId(),
+                }))
         );
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -488,7 +509,9 @@ describe("SagaOrchestrator", () => {
         for (let i = 0; i < 10; i++) {
             await registry.consumeEvent(
                 new ExampleLocalFailureResponseChannel()
-                    .parseMessageWithOrigin(new ExampleFailureResponse(sagaSession))
+                    .parseMessageWithOrigin(new ExampleFailureResponse({
+                        "sagaId": sagaSession.getSagaId(),
+                    }))
             );
 
             sagaSessions = Array.from(sagaRepo.getSessions());
@@ -567,7 +590,9 @@ describe("SagaOrchestrator", () => {
         try {
             await registry.consumeEvent(
                 new ExampleLocalSuccessResponseChannel()
-                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                    .parseMessageWithOrigin(new ExampleSuccessResponse({
+                        "sagaId": sagaSession.getSagaId(),
+                    }))
             );
         } catch (error) {
             err = error;
@@ -626,7 +651,9 @@ describe("SagaOrchestrator", () => {
 
             await registry.consumeEvent(
                 new ExampleLocalSuccessResponseChannel()
-                    .parseMessageWithOrigin(new ExampleSuccessResponse(sagaSession))
+                    .parseMessageWithOrigin(new ExampleSuccessResponse({
+                        "sagaId": sagaSession.getSagaId(),
+                    }))
             );
         }        
 
