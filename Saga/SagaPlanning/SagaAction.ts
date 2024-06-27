@@ -24,7 +24,7 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
         try {
             const handledDataSaver = await this.invocationDestination.handle<Tx>(sagaSession);
             const successRes = new (this.invocationDestination.getCommandSuccessResCtor())({sagaId: sagaSession.getSagaId()});
-            const successResSaver = this.invocationDestination.getSuccessResponseRepository().saveResponse(successRes);
+            const successResSaver = this.invocationDestination.getSuccessResponseRepository().saveMessage(successRes);
             
             return BaseCombineExecutable(
                 handledDataSaver,
@@ -32,7 +32,7 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
             );            
         } catch (e) {
             const failureRes = new (this.invocationDestination.getCommandFailureResCtor())({sagaId: sagaSession.getSagaId()});
-            const failureResSaver = this.invocationDestination.getFailureResponseRepository().saveResponse(failureRes);
+            const failureResSaver = this.invocationDestination.getFailureResponseRepository().saveMessage(failureRes);
             return failureResSaver;
         }
     }
@@ -59,7 +59,7 @@ export class LocalCompensationSagaAction<Tx extends TxContext> {
         try {
             const handledDataSaver = await this.compensationDestination.handle<Tx>(sagaSession);
             const successRes = new (this.compensationDestination.getCommandSuccessResCtor())({});
-            const successResSaver = this.compensationDestination.getSuccessResponseRepository().saveResponse(successRes);
+            const successResSaver = this.compensationDestination.getSuccessResponseRepository().saveMessage(successRes);
             
             return BaseCombineExecutable(
                 handledDataSaver,
@@ -67,7 +67,7 @@ export class LocalCompensationSagaAction<Tx extends TxContext> {
             );            
         } catch (e) {
             const failureRes = new (this.compensationDestination.getCommandFailureResCtor())({});
-            const failureResSaver = this.compensationDestination.getFailureResponseRepository().saveResponse(failureRes);
+            const failureResSaver = this.compensationDestination.getFailureResponseRepository().saveMessage(failureRes);
             return failureResSaver;
         }
     }
@@ -99,7 +99,7 @@ export class InvocationSagaAction<
 
     public async executeInvocation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
         const invocationCommand = new (this.invocationDestination.getCommandReqCtor())(sagaSession);
-        return this.commandRepository.saveCommand(invocationCommand);
+        return this.commandRepository.saveMessage(invocationCommand);
     }
 }
 
@@ -130,7 +130,7 @@ export class CompensationSagaAction<
 
     public async executeCompensation(sagaSession: saga.SagaSession): Promise<Executable<Tx>> {
         const compensationCommand = new (this.compensationDestination.getCommandReqCtor())(sagaSession);
-        return this.commandRepository.saveCommand(compensationCommand);
+        return this.commandRepository.saveMessage(compensationCommand);
     }
 }
 

@@ -8,7 +8,7 @@ import { AbstractSagaMessageWithOrigin } from "./CommandEndpoint";
 export type ChannelName = string;
 
 export abstract class Channel<C extends AbstractSagaMessage> {
-    abstract send(command: C): Promise<void>;
+    abstract send(command: AbstractSagaMessage): Promise<void>;
     abstract getChannelName(): ChannelName;
 
     public parseMessageWithOrigin(message: C): AbstractSagaMessageWithOrigin<C> {

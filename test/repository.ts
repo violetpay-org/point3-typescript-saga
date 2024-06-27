@@ -9,7 +9,7 @@ export class InMemoryCommandRepository<
     private readonly _deadLetters: Map<string, M> = new Map();
     private readonly _outbox: Map<string, M> = new Map();
 
-    saveCommand(command: M): Executable<TxContext> {
+    saveMessage(command: M): Executable<TxContext> {
         return async (tx: TxContext) => {
             this._outbox.set(randomUUID(), command)
         }
@@ -19,7 +19,7 @@ export class InMemoryCommandRepository<
         throw new Error('Method not implemented.');
     }
 
-    deleteCommands(messageId: string): Executable<TxContext> {
+    deleteMessages(messageId: string): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
@@ -27,11 +27,11 @@ export class InMemoryCommandRepository<
         throw new Error('Method not implemented.');
     }
 
-    getCommandsFromOutbox(batchSize: number): Promise<M[]> {
+    getMessagesFromOutbox(batchSize: number): Promise<M[]> {
         throw new Error('Method not implemented.');
     }
 
-    getCommandsFromDeadLetter(batchSize: number): Promise<M[]> {
+    getMessagesFromDeadLetter(batchSize: number): Promise<M[]> {
         throw new Error('Method not implemented.');
     }
 
@@ -49,7 +49,7 @@ export class InMemoryResponseRepository<
 > implements endpoint.ResponseRepository<M, TxContext> {
     private readonly _outbox: Map<string, M> = new Map();
 
-    saveResponse(response: M): Executable<TxContext> {
+    saveMessage(response: M): Executable<TxContext> {
         return async (tx: TxContext) => {
             this._outbox.set(randomUUID(), response);
         }
@@ -59,11 +59,15 @@ export class InMemoryResponseRepository<
         throw new Error('Method not implemented.');
     }
 
-    deleteResponses(messageId: string): Executable<TxContext> {
+    deleteMessages(messageId: string): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
-    getResponsesFromOutbox(batchSize: number): Promise<M[]> {
+    deleteDeadLetters(messageIds: string[]): Executable<TxContext> {
+        throw new Error('Method not implemented.');
+    }
+
+    getMessagesFromOutbox(batchSize: number): Promise<M[]> {
         throw new Error('Method not implemented.');
     };
 
