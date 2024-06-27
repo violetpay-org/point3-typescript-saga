@@ -19,7 +19,7 @@ export class InMemoryCommandRepository<
         throw new Error('Method not implemented.');
     }
 
-    deleteMessages(messageId: string): Executable<TxContext> {
+    deleteMessage(messageId: string): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
@@ -59,7 +59,7 @@ export class InMemoryResponseRepository<
         throw new Error('Method not implemented.');
     }
 
-    deleteMessages(messageId: string): Executable<TxContext> {
+    deleteMessage(messageId: string): Executable<TxContext> {
         throw new Error('Method not implemented.');
     }
 
