@@ -20,9 +20,9 @@ export interface MustCompleteStepBuilder<Tx extends TxContext> extends IStepBuil
 }
 
 export interface IInvokableStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {
-    invoke(endpoint: endpoint.CommandEndpoint<
-            saga.SagaSession, 
-            endpoint.Command<saga.SagaSession, endpoint.CommandArguments>, 
+    invoke<S extends saga.SagaSession>(endpoint: endpoint.CommandEndpoint<
+            S, 
+            endpoint.Command<S, endpoint.CommandArguments>, 
             endpoint.Response, 
             endpoint.Response
         >): AfterInvokationStepBuilder<Tx>;
@@ -36,9 +36,9 @@ export interface AfterInvokationStepBuilder<Tx extends TxContext> extends
     >, 
     MustCompleteStepBuilder<Tx> 
 {
-    withCompensation(endpoint: endpoint.CommandEndpoint<
-        saga.SagaSession, 
-        endpoint.Command<saga.SagaSession, endpoint.CommandArguments>, 
+    withCompensation<S extends saga.SagaSession>(endpoint: endpoint.CommandEndpoint<
+        S, 
+        endpoint.Command<S, endpoint.CommandArguments>, 
         endpoint.Response, 
         endpoint.Response
     >): IncompensatableStepBuilder<Tx>;
