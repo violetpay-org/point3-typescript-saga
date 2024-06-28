@@ -71,6 +71,10 @@ export class InMemoryResponseRepository<
         throw new Error('Method not implemented.');
     };
 
+    getMessagesFromDeadLetter(batchSize: number): Promise<M[]> {
+        throw new Error('Method not implemented.');
+    }
+
     // For testing purposes only
     getCommands(): IterableIterator<M> {
         return this._outbox.values();

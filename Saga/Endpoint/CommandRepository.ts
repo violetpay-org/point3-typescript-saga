@@ -17,5 +17,5 @@ export interface ResponseRepository<R extends Response, Tx extends TxContext> {
     deleteMessage(messageId: string): Executable<Tx>;
     deleteDeadLetters(messageIds: string[]): Executable<Tx>;
     getMessagesFromOutbox(batchSize: number): Promise<R[]>;
-    getMessagesFromOutbox(batchSize: number): Promise<R[]>;
+    getMessagesFromDeadLetter(batchSize: number): Promise<R[]>;
 }

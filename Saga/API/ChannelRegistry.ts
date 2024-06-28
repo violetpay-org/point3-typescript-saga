@@ -7,6 +7,10 @@ export class ChannelRegistry<Tx extends TxContext> {
         endpoint.SavableMessageChannel<Tx>
     >;
 
+    constructor() {
+        this.channels = new Map();
+    }
+
     public registerChannel(
         channel: endpoint.SavableMessageChannel<Tx>
     ) {
