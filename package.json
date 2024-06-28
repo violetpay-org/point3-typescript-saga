@@ -1,6 +1,6 @@
 {
     "name": "point3-typescript-saga",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "devDependencies": {
         "@types/jest": "^29.5.12",
         "ts-jest": "^29.1.5",
@@ -20,21 +20,24 @@
     },
     "jest": {
         "collectCoverage": true,
-        "coverageReporters": ["json", "html"],
+        "coverageReporters": [
+            "json",
+            "html"
+        ],
         "moduleFileExtensions": [
-          "js",
-          "json",
-          "ts"
+            "js",
+            "json",
+            "ts"
         ],
         "rootDir": "./",
         "testRegex": ".*\\.spec\\.ts$",
         "transform": {
-          "^.+\\.(t|j)s$": "ts-jest"
+            "^.+\\.(t|j)s$": "ts-jest"
         },
         "collectCoverageFrom": [
-          "**/*.(t|j)s"
+            "**/*.(t|j)s"
         ],
         "coverageDirectory": "./coverage",
         "testEnvironment": "node"
-      }
+    }
 }
