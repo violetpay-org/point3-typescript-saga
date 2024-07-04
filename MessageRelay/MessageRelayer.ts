@@ -28,7 +28,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     }
 
     private async relayAndSave(): Promise<void> {
-        var { messagesSuccessfullyPublished, remainingBatchSize } = await this.relayToChannel(
+        var { messagesSuccessfullyPublished, remainingBatchSize } = await this.publishMessages(
             this.BATCH_SIZE,
             true, // get batch from dead letters first
         );
@@ -43,7 +43,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             return;
         }
 
-        var { messagesFailedToPublish, messagesSuccessfullyPublished } = await this.relayToChannel(
+        var { messagesFailedToPublish, messagesSuccessfullyPublished } = await this.publishMessages(
             remainingBatchSize,
             false, // get batch from outbox
         );
@@ -125,7 +125,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         unitOfWork.Commit();
     }
 
-    private async relayToChannel(
+    private async publishMessages(
         batchSize: number,
         fromDeadLetters?: boolean
     ): Promise<{
@@ -146,7 +146,10 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             messagesFailedToPublish.set(channelName, []);
             messagesSuccessfullyPublished.set(channelName, []);
             const messages = messagesByChannel.get(channelName);
+            
             for (let message of messages) {
+                // 이부분 Promise.all로 바꿔서 동시에 보내도록 수정해야함
+                // 현재는 순차적으로 보내기 때문에 성능이 떨어질 수 있음.
                 try {
                     await this._channelRegistry
                         .getChannelByName(channelName)
