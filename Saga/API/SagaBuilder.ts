@@ -120,7 +120,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     public localInvoke(endpoint: endpoint.LocalEndpoint<
         session.SagaSession, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): stepBuilder.AfterLocalInvocationStepBuilder<Tx> {
         this._currentStep.invocationAction = new planning.LocalInvocationSagaAction(
             endpoint,
@@ -131,7 +132,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
     public withLocalCompensation(endpoint: endpoint.LocalEndpoint<
         session.SagaSession, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): stepBuilder.IStepBuilder<Tx> {
         this._currentStep.compensationAction = new planning.LocalCompensationSagaAction(
             endpoint,

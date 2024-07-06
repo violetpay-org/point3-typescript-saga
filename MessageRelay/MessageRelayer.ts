@@ -133,8 +133,8 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         messagesSuccessfullyPublished: Map<endpoint.ChannelName, CommandOrResponse[]>,
         remainingBatchSize: number
     }> {
-        const messagesFailedToPublish = new Map();
-        const messagesSuccessfullyPublished = new Map();
+        const messagesFailedToPublish = new Map<endpoint.ChannelName, CommandOrResponse[]>();
+        const messagesSuccessfullyPublished = new Map<endpoint.ChannelName, CommandOrResponse[]>();
 
         const messagesByChannel = await this.getRelayingMessages(
             this.BATCH_SIZE,

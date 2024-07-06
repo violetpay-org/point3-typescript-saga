@@ -7,14 +7,16 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
     invocationDestination: endpoint.LocalEndpoint<
         saga.SagaSession, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >;
 
     constructor(
         endpoint: endpoint.LocalEndpoint<
             saga.SagaSession, 
             endpoint.Response, 
-            endpoint.Response
+            endpoint.Response,
+            Tx
         >
     ) {
         this.invocationDestination = endpoint;
@@ -22,7 +24,7 @@ export class LocalInvocationSagaAction<Tx extends TxContext> {
 
     public async executeInvocation<S extends saga.SagaSession>(sagaSession: S): Promise<Executable<Tx>> {
         try {
-            const handledDataSaver = await this.invocationDestination.handle<Tx>(sagaSession);
+            const handledDataSaver = await this.invocationDestination.handle(sagaSession);
             const successRes = new (this.invocationDestination.getCommandSuccessResCtor())({sagaId: sagaSession.getSagaId()});
             const successResSaver = this.invocationDestination.getSuccessResponseRepository().saveMessage(successRes);
             
@@ -42,14 +44,16 @@ export class LocalCompensationSagaAction<Tx extends TxContext> {
     compensationDestination: endpoint.LocalEndpoint<
         saga.SagaSession, 
         endpoint.Response,
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >;
 
     constructor(
         endpoint: endpoint.LocalEndpoint<
             saga.SagaSession, 
             endpoint.Response, 
-            endpoint.Response
+            endpoint.Response,
+            Tx
         >
     ) {
         this.compensationDestination = endpoint;
@@ -57,7 +61,7 @@ export class LocalCompensationSagaAction<Tx extends TxContext> {
 
     public async executeCompensation<S extends saga.SagaSession>(sagaSession: S): Promise<Executable<Tx>> {
         try {
-            const handledDataSaver = await this.compensationDestination.handle<Tx>(sagaSession);
+            const handledDataSaver = await this.compensationDestination.handle(sagaSession);
             const successRes = new (this.compensationDestination.getCommandSuccessResCtor())({});
             const successResSaver = this.compensationDestination.getSuccessResponseRepository().saveMessage(successRes);
             

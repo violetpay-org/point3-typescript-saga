@@ -174,18 +174,19 @@ export abstract class CommandEndpoint<
 export abstract class LocalEndpoint<
     S extends SagaSession,
     SuccessRes extends Response,
-    FailureRes extends Response
+    FailureRes extends Response,
+    Tx extends TxContext
 > extends EndpointWithSuccessFailureRes<SuccessRes, FailureRes>{
-    private _successCommandRepository: ResponseRepository<SuccessRes, TxContext>;
-    private _failureCommandRepository: ResponseRepository<FailureRes, TxContext>;
+    private _successCommandRepository: ResponseRepository<SuccessRes, Tx>;
+    private _failureCommandRepository: ResponseRepository<FailureRes, Tx>;
     
     constructor(
         successResChannelName: ChannelName,
         failureResChannelName: ChannelName,
         commandSuccessResCtor: ResponseConstructor<SuccessRes>,
         commandFailureResCtor: ResponseConstructor<FailureRes>,
-        successCommandRepository: ResponseRepository<SuccessRes, TxContext>,
-        failureCommandRepository: ResponseRepository<FailureRes, TxContext>,
+        successCommandRepository: ResponseRepository<SuccessRes, Tx>,
+        failureCommandRepository: ResponseRepository<FailureRes, Tx>,
     ) {
         super(
             successResChannelName,
@@ -198,16 +199,16 @@ export abstract class LocalEndpoint<
         this._failureCommandRepository = failureCommandRepository;
     }
 
-    public getSuccessResponseRepository(): ResponseRepository<SuccessRes, TxContext> {
+    public getSuccessResponseRepository(): ResponseRepository<SuccessRes, Tx> {
         return this._successCommandRepository;
     }
 
-    public getFailureResponseRepository(): ResponseRepository<FailureRes, TxContext> {
+    public getFailureResponseRepository(): ResponseRepository<FailureRes, Tx> {
         return this._failureCommandRepository;
     }
 
     // Handle should be able to fix sagaSession passed in as argument...
-    abstract handle<Tx extends TxContext>(
+    abstract handle(
         sagaSession: S,
     ): Promise<Executable<Tx>>
 }

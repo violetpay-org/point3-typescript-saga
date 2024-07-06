@@ -57,7 +57,8 @@ export interface ILocalInvocableStepBuilder<Tx extends TxContext> {
     localInvoke(endpoint: endpoint.LocalEndpoint<
         saga.SagaSession, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): AfterLocalInvocationStepBuilder<Tx>;
 }
 export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends 
@@ -67,7 +68,8 @@ export interface AfterLocalInvocationStepBuilder<Tx extends TxContext> extends
     withLocalCompensation(endpoint: endpoint.LocalEndpoint<
         saga.SagaSession, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): IStepBuilder<Tx>;
 }
 export interface ILocalMustCompleteStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {

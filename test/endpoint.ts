@@ -31,9 +31,10 @@ export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.C
 export class AlwaysSuccessLocalEndpoint<Tx extends TxContext> extends point3Saga.endpoint.LocalEndpoint<
     point3Saga.saga.SagaSession,
     ExampleSuccessResponse,
-    ExampleFailureResponse
+    ExampleFailureResponse,
+    Tx
 > {
-    async handle<Tx extends TxContext>(sagaSession: point3Saga.saga.SagaSession): Promise<Executable<Tx>> {
+    async handle(sagaSession: point3Saga.saga.SagaSession): Promise<Executable<Tx>> {
         console.log("Handling saga session", sagaSession.getSagaId());
         return async (tx: Tx) => {
             console.log("Handled saga session", sagaSession.getSagaId());
