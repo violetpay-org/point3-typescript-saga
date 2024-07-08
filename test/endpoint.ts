@@ -11,7 +11,8 @@ export class ExampleEndpoint<Tx extends TxContext> extends point3Saga.endpoint.C
     point3Saga.saga.SagaSession,
     ExampleRequestCommand,
     ExampleSuccessResponse,
-    ExampleFailureResponse
+    ExampleFailureResponse,
+    Tx
 > {
     constructor(
         commandRepository: point3Saga.endpoint.CommandRepository<ExampleRequestCommand, Tx>,

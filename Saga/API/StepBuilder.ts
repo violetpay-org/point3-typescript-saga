@@ -24,7 +24,8 @@ export interface IInvokableStepBuilder<Tx extends TxContext> extends IStepBuilde
             S, 
             endpoint.Command<S, endpoint.CommandArguments>, 
             endpoint.Response, 
-            endpoint.Response
+            endpoint.Response,
+            Tx
         >): AfterInvokationStepBuilder<Tx>;
 }
 
@@ -40,7 +41,8 @@ export interface AfterInvokationStepBuilder<Tx extends TxContext> extends
         S, 
         endpoint.Command<S, endpoint.CommandArguments>, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): IncompensatableStepBuilder<Tx>;
 }
 

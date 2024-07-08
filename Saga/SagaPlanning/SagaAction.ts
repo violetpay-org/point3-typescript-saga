@@ -85,7 +85,8 @@ export class InvocationSagaAction<
         saga.SagaSession, 
         InvocationCommand, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >;
 
     constructor(
@@ -94,7 +95,8 @@ export class InvocationSagaAction<
             saga.SagaSession, 
             InvocationCommand, 
             endpoint.Response, 
-            endpoint.Response
+            endpoint.Response,
+            Tx
         >
     ) {
         this.commandRepository = commandRepository;
@@ -116,7 +118,8 @@ export class CompensationSagaAction<
         saga.SagaSession, 
         CompensationCommand, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >;
 
     constructor(
@@ -125,7 +128,8 @@ export class CompensationSagaAction<
             saga.SagaSession, 
             CompensationCommand, 
             endpoint.Response, 
-            endpoint.Response
+            endpoint.Response,
+            Tx
         >
     ) {
         this.commandRepository = commandRepository;

@@ -131,11 +131,12 @@ export abstract class CommandEndpoint<
     S extends SagaSession,
     ReqC extends Command<S, CommandArguments>,
     SuccessRes extends Response,
-    FailureRes extends Response
+    FailureRes extends Response,
+    Tx extends TxContext
 > extends EndpointWithSuccessFailureRes<SuccessRes, FailureRes> {
     private _reqChannelName: ChannelName;
     private _commandReqCtor: CommandConstructor<ReqC, S>;
-    private _commandRepository: CommandRepository<ReqC, TxContext>;
+    private _commandRepository: CommandRepository<ReqC, Tx>;
 
     constructor(
         reqChannelName: ChannelName,
@@ -144,7 +145,7 @@ export abstract class CommandEndpoint<
         commandReqCtor: CommandConstructor<ReqC, S>,
         commandSuccessResCtor: ResponseConstructor<SuccessRes>,
         commandFailureResCtor: ResponseConstructor<FailureRes>,
-        commandRepository: CommandRepository<ReqC, TxContext>,
+        commandRepository: CommandRepository<ReqC, Tx>,
     ) {
         super(
             successResChannelName, 

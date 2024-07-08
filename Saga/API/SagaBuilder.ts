@@ -84,7 +84,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
         session.SagaSession, 
         endpoint.Command<session.SagaSession, endpoint.CommandArguments>, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): stepBuilder.IncompensatableStepBuilder<Tx> {
         this._currentStep.compensationAction = new planning.CompensationSagaAction(
             endpoint.getCommandRepository(),
@@ -97,7 +98,8 @@ class InvokableStepBuilder<Tx extends TxContext> extends
         session.SagaSession, 
         endpoint.Command<session.SagaSession, endpoint.CommandArguments>, 
         endpoint.Response, 
-        endpoint.Response
+        endpoint.Response,
+        Tx
     >): stepBuilder.AfterInvokationStepBuilder<Tx> {
         this._currentStep.invocationAction = new planning.InvocationSagaAction(
             endpoint.getCommandRepository(),
