@@ -10,6 +10,10 @@ export class InMemoryCommand extends p3saga.endpoint.Command<
     ) {
         super(args);
     }
+
+    getTriggeredReason(): string {
+        return "Triggered because example command is processed successfully";
+    } 
 }
 
 export class InMemoryResponse extends p3saga.endpoint.Response {
@@ -17,5 +21,9 @@ export class InMemoryResponse extends p3saga.endpoint.Response {
         records: Record<string, string>,
     ) {
         super(records);
+    }
+
+    getTriggeredReason(): string {
+        return "Triggered because example command is processed successfully";
     }
 }
