@@ -21,6 +21,10 @@ export class ExampleRequestCommand extends endpoint.Command<saga.SagaSession, en
     ) {
         super(args);
     }
+
+    getTriggeredReason(): string {
+        return "Triggered because example command was requested";
+    }
 }
 
 export class ExampleSuccessResponse extends endpoint.Response {
@@ -31,6 +35,10 @@ export class ExampleSuccessResponse extends endpoint.Response {
     ) {
         super(record);
     }
+
+    getTriggeredReason(): string {
+        return "Triggered because example command is processed successfully";
+    }
 }
 
 export class ExampleFailureResponse extends endpoint.Response {
@@ -40,5 +48,9 @@ export class ExampleFailureResponse extends endpoint.Response {
         record: Record<string, string>
     ) {
         super(record);
+    }
+
+    getTriggeredReason(): string {
+        return "Triggered because example command is failed to process";
     }
 }

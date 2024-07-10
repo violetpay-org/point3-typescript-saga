@@ -7,6 +7,7 @@ import { SagaSession } from "../SagaSession/SagaSession";
 export interface AbstractSagaMessage {
     getSagaId(): string;
     getId(): string;
+    getTriggeredReason(): string;
 }
 
 export interface AbstractSagaMessageWithOrigin<M extends AbstractSagaMessage> {
@@ -56,6 +57,8 @@ export abstract class Command<
         }
     }
 
+    abstract getTriggeredReason(): string;
+
     getId(): string {
         return this._id;
     }
@@ -69,9 +72,7 @@ export abstract class Response implements AbstractSagaMessage {
     protected _sagaId: string;
     protected _id: string;
 
-    constructor(
-        record: Record<string, string>, // This is too generic, should be more specific
-    ) {
+    constructor(record: Record<string, string>) {
         if (record == undefined) {
             return
         }
@@ -86,6 +87,8 @@ export abstract class Response implements AbstractSagaMessage {
 
         this._id = randomUUID();
     }
+
+    abstract getTriggeredReason(): string;
 
     getId(): string {
         return this._id;
