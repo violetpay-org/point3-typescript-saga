@@ -21,6 +21,13 @@ export class CommandArguments {
     ) {}
 }
 
+export class ResponseArguments {
+    constructor(
+        public sagaId: string,
+        public id: string,
+    ) {}
+}
+
 export abstract class Command<
     S extends SagaSession, 
     A extends CommandArguments
