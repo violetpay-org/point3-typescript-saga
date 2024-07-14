@@ -1,5 +1,6 @@
 import { AbstractSagaMessage } from "Saga/Endpoint";
 import { p3saga, uow } from "index";
+import { register } from "module";
 
 export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends uow.TxContext> 
     extends p3saga.endpoint.Channel<C> 
@@ -39,11 +40,14 @@ export class ChannelRegistryForMessageRelay<Tx extends uow.TxContext> {
 export abstract class BaseLocalResponseChannel<
     R extends p3saga.endpoint.Response,
     Tx extends uow.TxContext
-> extends p3saga.endpoint.AbstractChannel<R> implements ChannelFromMessageRelay<R, Tx> {
+> extends p3saga.endpoint.ChannelToSagaRegistry<R, Tx> implements ChannelFromMessageRelay<R, Tx> {
     private _repository: p3saga.endpoint.AbstractMessageRepository<R, Tx>;
 
-    constructor(repository: p3saga.endpoint.AbstractMessageRepository<R, Tx>) {
-        super();
+    constructor(
+        sagaRegistry: p3saga.api.SagaRegistry<Tx>,
+        repository: p3saga.endpoint.AbstractMessageRepository<R, Tx>
+    ) {
+        super(sagaRegistry);
         this._repository = repository;
     }
 
