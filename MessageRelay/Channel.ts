@@ -1,23 +1,23 @@
 import { AbstractSagaMessage } from "Saga/Endpoint";
-import { p3saga, uow } from "index";
-import { register } from "module";
+import { endpoint, api, saga } from "../Saga/index";
+import { TxContext } from "UnitOfWork/main";
 
-export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends uow.TxContext> 
-    extends p3saga.endpoint.Channel<C> 
+export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends TxContext> 
+    extends endpoint.Channel<C> 
 {
-    getRepository(): p3saga.endpoint.AbstractMessageRepository<C, Tx>;
+    getRepository(): endpoint.AbstractMessageRepository<C, Tx>;
 }
 
-export class ChannelRegistryForMessageRelay<Tx extends uow.TxContext> {
-    private _channelRegistry: p3saga.api.ChannelRegistry<Tx>;
+export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
+    private _channelRegistry: api.ChannelRegistry<Tx>;
 
-    constructor(channelRegistry: p3saga.api.ChannelRegistry<Tx>) {
+    constructor(channelRegistry: api.ChannelRegistry<Tx>) {
         this._channelRegistry = channelRegistry;
     }
 
     // This is a type guard
     // This function checks if the channel is a ChannelFromMessageRelay
-    private isChannelFromMessageRelay<M extends p3saga.endpoint.AbstractSagaMessage>(channel: p3saga.endpoint.Channel<M>): channel is ChannelFromMessageRelay<M, Tx> {
+    private isChannelFromMessageRelay<M extends endpoint.AbstractSagaMessage>(channel: endpoint.Channel<M>): channel is ChannelFromMessageRelay<M, Tx> {
         return "getRepository" in channel;
     }
 
@@ -38,37 +38,37 @@ export class ChannelRegistryForMessageRelay<Tx extends uow.TxContext> {
 } 
 
 export abstract class BaseLocalResponseChannel<
-    R extends p3saga.endpoint.Response,
-    Tx extends uow.TxContext
-> extends p3saga.endpoint.ChannelToSagaRegistry<R, Tx> implements ChannelFromMessageRelay<R, Tx> {
-    private _repository: p3saga.endpoint.AbstractMessageRepository<R, Tx>;
+    R extends endpoint.Response,
+    Tx extends TxContext
+> extends api.ChannelToSagaRegistry<R, Tx> implements ChannelFromMessageRelay<R, Tx> {
+    private _repository: endpoint.AbstractMessageRepository<R, Tx>;
 
     constructor(
-        sagaRegistry: p3saga.api.SagaRegistry<Tx>,
-        repository: p3saga.endpoint.AbstractMessageRepository<R, Tx>
+        sagaRegistry: api.SagaRegistry<Tx>,
+        repository: endpoint.AbstractMessageRepository<R, Tx>
     ) {
         super(sagaRegistry);
         this._repository = repository;
     }
 
-    getRepository(): p3saga.endpoint.ResponseRepository<R, Tx> {
+    getRepository(): endpoint.ResponseRepository<R, Tx> {
         return this._repository;
     }
 }
 
 export abstract class BaseRemoteCommandChannel<
-    S extends p3saga.saga.SagaSession,
-    A extends p3saga.endpoint.CommandArguments,
-    Tx extends uow.TxContext
-> extends p3saga.endpoint.AbstractChannel<p3saga.endpoint.Command<S, A>> {
-    private _repository: p3saga.endpoint.CommandRepository<p3saga.endpoint.Command<S, A>, Tx>;
+    S extends saga.SagaSession,
+    A extends endpoint.CommandArguments,
+    Tx extends TxContext
+> extends endpoint.AbstractChannel<endpoint.Command<S, A>> {
+    private _repository: endpoint.CommandRepository<endpoint.Command<S, A>, Tx>;
 
-    constructor(repository: p3saga.endpoint.CommandRepository<p3saga.endpoint.Command<S, A>, Tx>) {
+    constructor(repository: endpoint.CommandRepository<endpoint.Command<S, A>, Tx>) {
         super();
         this._repository = repository;
     }
 
-    getRepository(): p3saga.endpoint.CommandRepository<p3saga.endpoint.Command<S, A>, Tx> {
+    getRepository(): endpoint.CommandRepository<endpoint.Command<S, A>, Tx> {
         return this._repository;
     }
 }

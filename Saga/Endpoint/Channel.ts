@@ -23,20 +23,6 @@ export abstract class AbstractChannel<C extends AbstractSagaMessage> implements 
     }
 }
 
-export abstract class ChannelToSagaRegistry<M extends AbstractSagaMessage, Tx extends uow.TxContext> extends AbstractChannel<M> {
-    private _sagaRegistry: p3saga.api.SagaRegistry<Tx>;
-
-    constructor(sagaRegistry: p3saga.api.SagaRegistry<Tx>) {
-        super();
-        this._sagaRegistry = sagaRegistry;
-    }
-
-    public async send(command: AbstractSagaMessage): Promise<void> {
-        const commandWithOrigin = this.parseMessageWithOrigin(command as M);
-        return this._sagaRegistry.consumeEvent(commandWithOrigin);
-    }
-}
-
 class MessageWithOrigin<M extends AbstractSagaMessage> implements AbstractSagaMessageWithOrigin<M> {
     private origin: ChannelName;
     private message: M;

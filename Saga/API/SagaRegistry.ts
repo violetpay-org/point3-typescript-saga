@@ -95,3 +95,18 @@ export class SagaRegistry<Tx extends TxContext> {
         );
     }
 }
+
+export abstract class ChannelToSagaRegistry<M extends endpoint.AbstractSagaMessage, Tx extends TxContext> 
+    extends endpoint.AbstractChannel<M> {
+    private _sagaRegistry: SagaRegistry<Tx>;
+
+    constructor(sagaRegistry: SagaRegistry<Tx>) {
+        super();
+        this._sagaRegistry = sagaRegistry;
+    }
+
+    public async send(command: AbstractSagaMessage): Promise<void> {
+        const commandWithOrigin = this.parseMessageWithOrigin(command as M);
+        return this._sagaRegistry.consumeEvent(commandWithOrigin);
+    }
+}

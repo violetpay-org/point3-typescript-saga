@@ -1,3 +1,4 @@
+import { uow } from "index";
 import { TxContext } from "../../UnitOfWork/main";
 import * as endpoint from "../Endpoint/index";
 
