@@ -4,7 +4,7 @@ import * as endpoint from "../Endpoint/index";
 export class ChannelRegistry<Tx extends TxContext> {
     protected channels: Map<
         endpoint.ChannelName, 
-        endpoint.SavableMessageChannel<Tx>
+        endpoint.Channel<endpoint.AbstractSagaMessage>
     >;
 
     constructor() {
@@ -12,7 +12,7 @@ export class ChannelRegistry<Tx extends TxContext> {
     }
 
     public registerChannel(
-        channel: endpoint.SavableMessageChannel<Tx>
+        channel: endpoint.Channel<endpoint.AbstractSagaMessage>
     ) {
         if (this.hasChannelWithName(channel.getChannelName())) {
             throw new Error(`Channel with name ${channel.getChannelName()} already exists`);
@@ -25,7 +25,7 @@ export class ChannelRegistry<Tx extends TxContext> {
         return this.channels.has(channelName);
     }
 
-    public getChannelByName(channelName: endpoint.ChannelName): endpoint.SavableMessageChannel<Tx> {
+    public getChannelByName(channelName: endpoint.ChannelName): endpoint.Channel<endpoint.AbstractSagaMessage> {
         if (!this.hasChannelWithName(channelName)) {
             throw new Error(`Channel with name ${channelName} does not exist`);
         }
@@ -33,7 +33,7 @@ export class ChannelRegistry<Tx extends TxContext> {
         return this.channels.get(channelName);
     }
 
-    public getChannels(): endpoint.SavableMessageChannel<Tx>[] {
+    public getChannels(): endpoint.Channel<endpoint.AbstractSagaMessage>[] {
         return Array.from(this.channels.values());
     }
 }

@@ -3,12 +3,13 @@ import { InMemoryCommand } from "./messages";
 import { ExampleSavableCommandChannel, MessageDispatcher } from "./channel";
 import { InMemoryCommandRepository } from "./repository";
 import { MessageRelayer } from "../MessageRelayer";
+import { ChannelRegistryForMessageRelay } from "../Channel";
 
 
 var channelRegistry: p3saga.api.ChannelRegistry<uow.TxContext>;
+var channelRegistryForMessageRelay: ChannelRegistryForMessageRelay<uow.TxContext>;
 var commandChan: ExampleSavableCommandChannel;
 var commandChanDispatcher: MessageDispatcher<InMemoryCommand>;
-var responseChan: p3saga.endpoint.SavableMessageChannel<uow.TxContext>;
 var commandRepo: InMemoryCommandRepository<uow.TxContext>;
 
 describe("MessageRelayer", () => {
@@ -20,6 +21,7 @@ describe("MessageRelayer", () => {
         commandChan.addDispatcher(commandChanDispatcher);
 
         channelRegistry.registerChannel(commandChan);
+        channelRegistryForMessageRelay = new ChannelRegistryForMessageRelay<uow.TxContext>(channelRegistry);
 
         const uow = new uowMemory.InMemoryUnitOfWork;
 
@@ -54,7 +56,7 @@ describe("MessageRelayer", () => {
 
     test("should successfully relay messages even if channel send fails sometime", async () => {
         const messageRelayer = new MessageRelayer(
-            channelRegistry, 
+            channelRegistryForMessageRelay, 
             uowMemory.InMemoryUnitOfWorkFactory
         );
 

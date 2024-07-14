@@ -4,15 +4,36 @@ import * as saga from "../SagaSession/index";
 import { AbstractSagaMessage, Command, CommandArguments, Response } from "./CommandEndpoint";
 import { CommandRepository, ResponseRepository } from "./CommandRepository";
 import { AbstractSagaMessageWithOrigin } from "./CommandEndpoint";
+import { p3saga, uow } from "index";
 
 export type ChannelName = string;
 
-export abstract class Channel<C extends AbstractSagaMessage> {
+export interface Channel<C extends AbstractSagaMessage> {
+    send(command: AbstractSagaMessage): Promise<void>;
+    getChannelName(): ChannelName;
+    parseMessageWithOrigin(message: C): AbstractSagaMessageWithOrigin<C>;
+}
+
+export abstract class AbstractChannel<C extends AbstractSagaMessage> implements Channel<C> {
     abstract send(command: AbstractSagaMessage): Promise<void>;
     abstract getChannelName(): ChannelName;
 
     public parseMessageWithOrigin(message: C): AbstractSagaMessageWithOrigin<C> {
         return new MessageWithOrigin(this.getChannelName(), message);
+    }
+}
+
+export abstract class ChannelToSagaRegistry<M extends AbstractSagaMessage, Tx extends uow.TxContext> extends AbstractChannel<M> {
+    private _sagaRegistry: p3saga.api.SagaRegistry<Tx>;
+
+    constructor(sagaRegistry: p3saga.api.SagaRegistry<Tx>) {
+        super();
+        this._sagaRegistry = sagaRegistry;
+    }
+
+    public async send(command: AbstractSagaMessage): Promise<void> {
+        const commandWithOrigin = this.parseMessageWithOrigin(command as M);
+        return this._sagaRegistry.consumeEvent(commandWithOrigin);
     }
 }
 
@@ -31,34 +52,6 @@ class MessageWithOrigin<M extends AbstractSagaMessage> implements AbstractSagaMe
 
     getSagaMessage(): M {
         return this.message;
-    }
-}
-
-export type SavableMessageChannel<Tx extends TxContext> = SavableCommandChannel<Command<saga.SagaSession, CommandArguments>, Tx> | SavableResponseChannel<Response, Tx>;
-
-export abstract class SavableCommandChannel<C extends Command<saga.SagaSession, CommandArguments>, Tx extends TxContext> extends Channel<C> {
-    private _commandRepository: CommandRepository<C, Tx>;
-
-    constructor(commandRepository: CommandRepository<C, Tx>) {
-        super();
-        this._commandRepository = commandRepository;
-    }
-
-    public getRepository(): CommandRepository<C, Tx> {
-        return this._commandRepository;
-    }
-}
-
-export abstract class SavableResponseChannel<R extends Response, Tx extends TxContext> extends Channel<R> {
-    private _responseRepository: ResponseRepository<R, Tx>;
-
-    constructor(responseRepository: ResponseRepository<R, Tx>) {
-        super();
-        this._responseRepository = responseRepository;
-    }
-
-    public getRepository(): ResponseRepository<R, Tx> {
-        return this._responseRepository;
     }
 }
 

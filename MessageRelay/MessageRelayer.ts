@@ -1,17 +1,17 @@
+import { Channel } from "diagnostics_channel";
 import { saga, endpoint, api } from "../Saga/index";
 import * as uow from "../UnitOfWork/main";
 import { TxContext } from "../UnitOfWork/main";
 import { BatchJob } from "./BatchJob";
-
-type CommandOrResponse = endpoint.Command<saga.SagaSession, endpoint.CommandArguments> | endpoint.Response;
+import { ChannelFromMessageRelay, ChannelRegistryForMessageRelay } from "./Channel";
 
 export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     private BATCH_SIZE = 500; // Dead letter batch size == Message batch size
-    private _channelRegistry: api.ChannelRegistry<Tx>;
+    private _channelRegistry: ChannelRegistryForMessageRelay<Tx>;
     private _unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>;
 
     constructor(
-        channelRegistry: api.ChannelRegistry<Tx>,
+        channelRegistry: ChannelRegistryForMessageRelay<Tx>,
         unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>
     ) {
         super();
@@ -62,38 +62,22 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         }
     }
 
-    private async saveDeadLetters<M extends CommandOrResponse>(
-        channel: endpoint.SavableMessageChannel<Tx>,
+    private async saveDeadLetters<M extends endpoint.AbstractSagaMessage>(
+        channel: ChannelFromMessageRelay<M, Tx>,
         deadLetters: M[],
     ) {
-        if (channel instanceof endpoint.SavableCommandChannel) {
-            const unitOfWork = this._unitOfWorkFactory();
+        const unitOfWork = this._unitOfWorkFactory();
 
-            const deadLetterSaver = channel
-                .getRepository()
-                .saveDeadLetters(deadLetters as endpoint.Command<
-                    saga.SagaSession,
-                    endpoint.CommandArguments
-                >[]);
+        const deadLetterSaver = channel
+            .getRepository()
+            .saveDeadLetters(deadLetters);
 
-            unitOfWork.addToWork(deadLetterSaver);
-            unitOfWork.Commit();
-        }
-
-        if (channel instanceof endpoint.SavableResponseChannel) {
-            const unitOfWork = this._unitOfWorkFactory();
-
-            const deadLetterSaver = channel
-                .getRepository()
-                .saveDeadLetters(deadLetters as endpoint.Response[]);
-
-            unitOfWork.addToWork(deadLetterSaver);
-            unitOfWork.Commit();
-        }
+        unitOfWork.addToWork(deadLetterSaver);
+        unitOfWork.Commit();
     }
 
-    private async deleteMessagesFromOutbox<M extends CommandOrResponse>(
-        channel: endpoint.SavableMessageChannel<Tx>,
+    private async deleteMessagesFromOutbox<M extends endpoint.AbstractSagaMessage>(
+        channel: ChannelFromMessageRelay<M, Tx>,
         messages: M[],
     ) {
         messages.forEach((message) => {
@@ -108,8 +92,8 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         });
     }
 
-    private async deleteDeadLetters<M extends CommandOrResponse>(
-        channel: endpoint.SavableMessageChannel<Tx>,
+    private async deleteDeadLetters<M extends endpoint.AbstractSagaMessage>(
+        channel: ChannelFromMessageRelay<M, Tx>,
         deadLetters: M[],
     ) {
         const unitOfWork = this._unitOfWorkFactory()
@@ -120,7 +104,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         const deadLettersDeleter = channel
             .getRepository()
             .deleteDeadLetters(deadLetters.map((message) => message.getId()));
-        
+
         unitOfWork.addToWork(deadLettersDeleter);
         unitOfWork.Commit();
     }
@@ -129,12 +113,12 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         batchSize: number,
         fromDeadLetters?: boolean
     ): Promise<{
-        messagesFailedToPublish: Map<endpoint.ChannelName, CommandOrResponse[]>,
-        messagesSuccessfullyPublished: Map<endpoint.ChannelName, CommandOrResponse[]>,
+        messagesFailedToPublish: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
+        messagesSuccessfullyPublished: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
         remainingBatchSize: number
     }> {
-        const messagesFailedToPublish = new Map<endpoint.ChannelName, CommandOrResponse[]>();
-        const messagesSuccessfullyPublished = new Map<endpoint.ChannelName, CommandOrResponse[]>();
+        const messagesFailedToPublish = new Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>();
+        const messagesSuccessfullyPublished = new Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>();
 
         const messagesByChannel = await this.getRelayingMessages(
             this.BATCH_SIZE,
@@ -146,7 +130,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             messagesFailedToPublish.set(channelName, []);
             messagesSuccessfullyPublished.set(channelName, []);
             const messages = messagesByChannel.get(channelName);
-            
+
             for (let message of messages) {
                 // 이부분 Promise.all로 바꿔서 동시에 보내도록 수정해야함
                 // 현재는 순차적으로 보내기 때문에 성능이 떨어질 수 있음.
@@ -182,10 +166,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     ): Promise<
         Map<
             endpoint.ChannelName,
-            endpoint.AbstractSagaMessageWithOrigin<
-                endpoint.Command<saga.SagaSession, endpoint.CommandArguments> |
-                endpoint.Response
-            >[]
+            endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[]
         >
     > {
         if (batchSize <= 0) {
@@ -194,15 +175,12 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
 
         const messagesByChannel: Map<
             endpoint.ChannelName,
-            endpoint.AbstractSagaMessageWithOrigin<
-                endpoint.Command<saga.SagaSession, endpoint.CommandArguments> |
-                endpoint.Response
-            >[]
+            endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[]
         > = new Map();
 
         for (const channel of this._channelRegistry.getChannels()) {
             const messageRepo = channel.getRepository();
-            var messages: endpoint.Response[] | endpoint.Command<saga.SagaSession, endpoint.CommandArguments>[] = [];
+            var messages: endpoint.AbstractSagaMessage[] = [];
 
             if (fromDeadLetters) {
                 messages = await messageRepo.getMessagesFromDeadLetter(batchSize);
@@ -210,30 +188,14 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
                 messages = await messageRepo.getMessagesFromOutbox(batchSize);
             }
 
-            if (channel instanceof endpoint.SavableCommandChannel) {
-                const messagesWithOrigin: endpoint.AbstractSagaMessageWithOrigin<
-                    endpoint.Command<saga.SagaSession, endpoint.CommandArguments>
-                >[] = [];
+            const messagesWithOrigin: endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[] = [];
 
-                for (const message of messages) {
-                    const messageWithOrigin = channel.parseMessageWithOrigin(message as
-                        endpoint.Command<saga.SagaSession, endpoint.CommandArguments>);
-                    messagesWithOrigin.push(messageWithOrigin);
-                }
-
-                messagesByChannel.set(channel.getChannelName(), messagesWithOrigin);
+            for (const message of messages) {
+                const messageWithOrigin = channel.parseMessageWithOrigin(message);
+                messagesWithOrigin.push(messageWithOrigin);
             }
 
-            if (channel instanceof endpoint.SavableResponseChannel) {
-                const messagesWithOrigin: endpoint.AbstractSagaMessageWithOrigin<endpoint.Response>[] = [];
-
-                for (const message of messages) {
-                    const messageWithOrigin = channel.parseMessageWithOrigin(message as endpoint.Response);
-                    messagesWithOrigin.push(messageWithOrigin);
-                }
-
-                messagesByChannel.set(channel.getChannelName(), messagesWithOrigin);
-            }
+            messagesByChannel.set(channel.getChannelName(), messagesWithOrigin);
         }
 
         return messagesByChannel;
