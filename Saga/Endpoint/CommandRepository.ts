@@ -2,6 +2,7 @@ import { Executable, TxContext } from "../../UnitOfWork/main";
 import { AbstractSagaMessage, Command, CommandArguments, Response } from "./CommandEndpoint";
 import * as saga from "../SagaSession/index";
 import { uowMemory } from "index";
+import { Mutex } from "async-mutex";
 
 export interface AbstractMessageRepository<M extends AbstractSagaMessage, Tx extends TxContext> {
     saveMessage(message: M): Executable<Tx>;
@@ -35,51 +36,65 @@ export class MemoryCommandRepository<C extends Command<saga.SagaSession, Command
 {
     private _commands = new Map<string, C>();
     private _deadLetters = new Map<string, C>();
+    private _commandMutex = new Mutex();
+    private _deadLetterMutex = new Mutex();
 
     saveMessage(command: C): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._commandMutex.acquire();
             // save message
             this._commands.set(command.getId(), command);
+            this._commandMutex.release();
             return;
         }
     }
 
     saveDeadLetters(commands: C[]): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._deadLetterMutex.acquire();
             // save dead letters
             commands.forEach(command => {
                 this._deadLetters.set(command.getId(), command);
             });
+            this._deadLetterMutex.release
             return;
         }
     }
 
     deleteMessage(messageId: string): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._commandMutex.acquire();
             // delete message
             this._commands.delete(messageId);
+            this._commandMutex.release();
             return;
         }
     }
 
     deleteDeadLetters(messageIds: string[]): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._deadLetterMutex.acquire();
             // delete dead letters
             messageIds.forEach(messageId => {
                 this._deadLetters.delete(messageId);
             });
+            this._deadLetterMutex.release();
             return;
         }
     }
 
-    getMessagesFromOutbox(batchSize: number): Promise<C[]> {
+    async getMessagesFromOutbox(batchSize: number): Promise<C[]> {
+        await this._commandMutex.acquire();
         const commands = Array.from(this._commands.values()).slice(0, batchSize);
-        return Promise.resolve(commands);
+        this._commandMutex.release();
+        return commands;
     }
 
-    getMessagesFromDeadLetter(batchSize: number): Promise<C[]> {
+    async getMessagesFromDeadLetter(batchSize: number): Promise<C[]> {
+        await this._deadLetterMutex.acquire();
         const commands = Array.from(this._deadLetters.values()).slice(0, batchSize);
-        return Promise.resolve(commands);
+        this._deadLetterMutex.release();
+        return commands;
     }
 }
 
@@ -88,50 +103,64 @@ export class MemoryResponseRepository<R extends Response>
 {
     private _responses = new Map<string, R>();
     private _deadLetters = new Map<string, R>();
+    private _responseMutex = new Mutex();
+    private _deadLetterMutex = new Mutex();
 
     saveMessage(response: R): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._responseMutex.acquire();
             // save message
             this._responses.set(response.getId(), response);
+            this._responseMutex.release();
             return;
         }
     }
 
     saveDeadLetters(responseRecords: R[]): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._deadLetterMutex.acquire();
             // save dead letters
             responseRecords.forEach(response => {
                 this._deadLetters.set(response.getId(), response);
             });
+            this._deadLetterMutex.release();
             return;
         }
     }
 
     deleteMessage(messageId: string): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._responseMutex.acquire();
             // delete message
             this._responses.delete(messageId);
+            this._responseMutex.release();
             return;
         }
     }
 
     deleteDeadLetters(messageIds: string[]): Executable<uowMemory.InMemoryTxContext> {
         return async (tx: uowMemory.InMemoryTxContext) => {
+            await this._deadLetterMutex.acquire();
             // delete dead letters
             messageIds.forEach(messageId => {
                 this._deadLetters.delete(messageId);
             });
+            this._deadLetterMutex.release();
             return;
         }
     }
 
-    getMessagesFromOutbox(batchSize: number): Promise<R[]> {
+    async getMessagesFromOutbox(batchSize: number): Promise<R[]> {
+        await this._responseMutex.acquire();
         const responses = Array.from(this._responses.values()).slice(0, batchSize);
-        return Promise.resolve(responses);
+        this._responseMutex.release();
+        return responses;
     }
 
-    getMessagesFromDeadLetter(batchSize: number): Promise<R[]> {
+    async getMessagesFromDeadLetter(batchSize: number): Promise<R[]> {
+        await this._deadLetterMutex.acquire();
         const responses = Array.from(this._deadLetters.values()).slice(0, batchSize);
-        return Promise.resolve(responses);
+        this._deadLetterMutex.release();
+        return responses;
     }
 }
