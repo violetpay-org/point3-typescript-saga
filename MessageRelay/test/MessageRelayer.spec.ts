@@ -1,7 +1,7 @@
 import { p3saga, uow, uowMemory } from "../../index";
 import { InMemoryCommand } from "./messages";
 import { ExampleSavableCommandChannel, MessageDispatcher } from "./channel";
-import { InMemoryCommandRepository } from "./repository";
+import { MemoryCommandRepository } from "../../Saga/Endpoint/CommandRepository";
 import { MessageRelayer } from "../MessageRelayer";
 import { ChannelRegistryForMessageRelay } from "../Channel";
 
@@ -10,12 +10,12 @@ var channelRegistry: p3saga.api.ChannelRegistry;
 var channelRegistryForMessageRelay: ChannelRegistryForMessageRelay<uow.TxContext>;
 var commandChan: ExampleSavableCommandChannel;
 var commandChanDispatcher: MessageDispatcher<InMemoryCommand>;
-var commandRepo: InMemoryCommandRepository<uow.TxContext>;
+var commandRepo: MemoryCommandRepository<InMemoryCommand>;
 
 describe("MessageRelayer", () => {
     beforeEach(async () => {
         channelRegistry = new p3saga.api.ChannelRegistry();
-        commandRepo = new InMemoryCommandRepository<uow.TxContext>;
+        commandRepo = new MemoryCommandRepository<InMemoryCommand>;
         commandChan = new ExampleSavableCommandChannel(commandRepo);
         commandChanDispatcher = new MessageDispatcher<InMemoryCommand>;
         commandChan.addDispatcher(commandChanDispatcher);

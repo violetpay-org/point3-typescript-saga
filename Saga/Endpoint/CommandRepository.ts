@@ -56,7 +56,7 @@ export class MemoryCommandRepository<C extends Command<saga.SagaSession, Command
             commands.forEach(command => {
                 this._deadLetters.set(command.getId(), command);
             });
-            this._deadLetterMutex.release
+            this._deadLetterMutex.release();
             return;
         }
     }
