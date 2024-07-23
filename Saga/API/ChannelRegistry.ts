@@ -6,11 +6,9 @@ export class ChannelRegistry {
         endpoint.ChannelName, 
         endpoint.Channel<endpoint.AbstractSagaMessage>
     >;
-    private _channelRegistryMutex: Mutex;
 
     constructor() {
         this.channels = new Map();
-        this._channelRegistryMutex = new Mutex();
     }
 
     public registerChannel(

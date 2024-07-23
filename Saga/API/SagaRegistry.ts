@@ -50,9 +50,8 @@ export class SagaRegistry<Tx extends TxContext> {
         this.registryMutex = new Mutex;
     }
 
-    public async hasSagaWithName(sageName: string): Promise<boolean> {
-        const hasName = this.sagas.some(saga => saga.getName() === sageName);
-        return hasName;
+    public hasSagaWithName(sageName: string): boolean {
+        return this.sagas.some(saga => saga.getName() === sageName);
     }
 
     public registerSaga(saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>) {
