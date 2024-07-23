@@ -1,7 +1,7 @@
 import { Executable, TxContext } from "../../UnitOfWork/main";
 import { AbstractSagaMessage, Command, CommandArguments, Response } from "./CommandEndpoint";
 import * as saga from "../SagaSession/index";
-import { uowMemory } from "index";
+import * as uowMemory from "../../UnitOfWork/inMemory";
 import { Mutex } from "async-mutex";
 
 export interface AbstractMessageRepository<M extends AbstractSagaMessage, Tx extends TxContext> {

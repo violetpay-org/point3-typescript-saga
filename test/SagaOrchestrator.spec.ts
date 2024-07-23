@@ -14,11 +14,9 @@ import {
 } from "./command";
 
 import {
-    ExampleFailureResponseChannel,
     ExampleLocalFailureResponseChannel,
     ExampleLocalSuccessResponseChannel,
     ExampleRequestChannel,
-    ExampleSuccessResponseChannel,
 } from "./channel";
 
 import {
@@ -34,7 +32,6 @@ import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
 import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors/index";
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoint";
-import { Step } from "../Saga/SagaPlanning/Step";
 
 var successResRepo: InMemoryResponseRepository<ExampleSuccessResponse>;
 var failureResRepo: InMemoryResponseRepository<ExampleFailureResponse>;

@@ -1,15 +1,15 @@
 import { AbstractSagaMessage } from "Saga/Endpoint";
 import { endpoint, api, saga } from "../Saga/index";
 import { TxContext } from "UnitOfWork/main";
+import { Mutex } from "async-mutex";
 
-export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends TxContext> 
-    extends endpoint.Channel<C> 
-{
+export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends TxContext>
+    extends endpoint.Channel<C> {
     getRepository(): endpoint.AbstractMessageRepository<C, Tx>;
 }
 
 export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
-    private _channelRegistry: api.ChannelRegistry;
+    private readonly _channelRegistry: api.ChannelRegistry;
 
     constructor(channelRegistry: api.ChannelRegistry) {
         this._channelRegistry = channelRegistry;
@@ -22,6 +22,7 @@ export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
     }
 
     public getChannelByName(channelName: string): ChannelFromMessageRelay<AbstractSagaMessage, Tx> {
+
         const channel = this._channelRegistry.getChannelByName(channelName);
 
         if (!this.isChannelFromMessageRelay(channel)) {
@@ -35,7 +36,7 @@ export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
         return this._channelRegistry.getChannels()
             .filter(this.isChannelFromMessageRelay);
     }
-} 
+}
 
 export abstract class BaseLocalResponseChannel<
     R extends endpoint.Response,

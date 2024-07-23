@@ -5,6 +5,35 @@ import { TxContext } from "../UnitOfWork/main";
 import { BatchJob } from "./BatchJob";
 import { ChannelFromMessageRelay, ChannelRegistryForMessageRelay } from "./Channel";
 
+class RemainingBatchSize {
+    private remainingBatchSize: number;
+    private mutex: Mutex;
+
+    constructor(initialBatchSize: number) {
+        this.remainingBatchSize = initialBatchSize;
+        this.mutex = new Mutex;
+    }
+
+    async decrease() {
+        await this.mutex.acquire();
+        this.remainingBatchSize -= 1;
+        this.mutex.release();
+    }
+
+    async increase() {
+        await this.mutex.acquire();
+        this.remainingBatchSize += 1;
+        this.mutex.release();
+    }
+
+    async get() {
+        await this.mutex.acquire();
+        const remainingBatchSize = this.remainingBatchSize;
+        this.mutex.release();
+        return remainingBatchSize;
+    }
+}
+
 export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     private BATCH_SIZE = 500; // Dead letter batch size == Message batch size
     private _channelRegistry: ChannelRegistryForMessageRelay<Tx>;
@@ -33,8 +62,10 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     }
 
     private async relayAndSave(): Promise<void> {
-        var { messagesSuccessfullyPublished, remainingBatchSize } = await this.publishMessages(
-            this.BATCH_SIZE,
+        const remainingBatchSize = new RemainingBatchSize(this.BATCH_SIZE);
+
+        var { messagesSuccessfullyPublished } = await this.publishMessages(
+            remainingBatchSize,
             true, // get batch from dead letters first
         );
 
@@ -44,7 +75,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             await this.deleteDeadLetters(channel, messagesToDelete);
         }
 
-        if (remainingBatchSize <= 0) {
+        if (await remainingBatchSize.get() <= 0) {
             return;
         }
 
@@ -115,54 +146,99 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     }
 
     private async publishMessages(
-        batchSize: number,
+        batchSize: RemainingBatchSize,
         fromDeadLetters?: boolean
     ): Promise<{
         messagesFailedToPublish: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
         messagesSuccessfullyPublished: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
-        remainingBatchSize: number
     }> {
+        const assignedBatchSize = await batchSize.get();
         const messagesFailedToPublish = new Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>();
         const messagesSuccessfullyPublished = new Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>();
+        const messagesFailedToPublishMutex = new Mutex();
+        const messagesSuccessfullyPublishedMutex = new Mutex();
 
         const messagesByChannel = await this.getRelayingMessages(
-            this.BATCH_SIZE,
+            assignedBatchSize,
             fromDeadLetters,
         );
-        var remainingBatchSize = batchSize;
 
         for (let channelName of messagesByChannel.keys()) {
             messagesFailedToPublish.set(channelName, []);
             messagesSuccessfullyPublished.set(channelName, []);
             const messages = messagesByChannel.get(channelName);
 
-            for (let message of messages) {
-                // 이부분 Promise.all로 바꿔서 동시에 보내도록 수정해야함
-                // 현재는 순차적으로 보내기 때문에 성능이 떨어질 수 있음.
-                try {
-                    await this._channelRegistry
-                        .getChannelByName(channelName)
-                        .send(message.getSagaMessage());
-
-                    messagesSuccessfullyPublished
-                        .get(channelName)
-                        .push(message.getSagaMessage());
-                } catch (e) {
-                    console.error(e);
-                    messagesFailedToPublish
-                        .get(channelName)
-                        .push(message.getSagaMessage());
-                }
-
-                remainingBatchSize -= 1;
-            }
+            await Promise.all(
+                messages.map(async (message) => {
+                    await this.sendMessageToChannel(
+                        channelName,
+                        message.getSagaMessage(),
+                        messagesSuccessfullyPublished,
+                        messagesFailedToPublish,
+                        messagesSuccessfullyPublishedMutex,
+                        messagesFailedToPublishMutex,
+                        batchSize.decrease.bind(batchSize) // decrease remaining batch size
+                    )
+                })
+            );
         }
 
         return {
             messagesFailedToPublish,
             messagesSuccessfullyPublished,
-            remainingBatchSize
         };
+    }
+
+    private async sendMessageToChannel(
+        channelName: endpoint.ChannelName,
+        message: endpoint.AbstractSagaMessage,
+        successfulMessages: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
+        failedMessages: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
+        successfulMessagesMutex: Mutex,
+        failedMessagesMutex: Mutex,
+        callback?: () => Promise<void>
+    ) {
+        const channel = this._channelRegistry.getChannelByName(channelName);
+
+        try {
+            await channel.send(message);
+            await this.pushToResultMap(
+                channelName,
+                successfulMessages,
+                successfulMessagesMutex,
+                message
+            );
+        } catch (e) {
+            console.error(e); // this should be sent to a logger
+            await this.pushToResultMap(
+                channelName,
+                failedMessages,
+                failedMessagesMutex,
+                message
+            );
+        }
+
+        if (callback) {
+            await callback();
+        }
+    }
+
+    private async pushToResultMap(
+        channelName: endpoint.ChannelName,
+        map: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
+        mapMutex: Mutex,
+        message: endpoint.AbstractSagaMessage
+    ) {
+        await mapMutex.acquire();
+        try {
+            if (!map.has(channelName)) {
+                map.set(channelName, []);
+            }
+
+            map.get(channelName).push(message);
+        } finally {
+            mapMutex.release();
+        }
     }
 
     private async getRelayingMessages(
