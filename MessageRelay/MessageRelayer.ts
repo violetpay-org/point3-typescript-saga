@@ -1,4 +1,5 @@
 import { saga, endpoint, api } from "../Saga/index";
+import { Mutex } from "async-mutex";
 import * as uow from "../UnitOfWork/main";
 import { TxContext } from "../UnitOfWork/main";
 import { BatchJob } from "./BatchJob";
@@ -8,6 +9,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     private BATCH_SIZE = 500; // Dead letter batch size == Message batch size
     private _channelRegistry: ChannelRegistryForMessageRelay<Tx>;
     private _unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>;
+    private _messageRelayerMutex: Mutex;
 
     constructor(
         channelRegistry: ChannelRegistryForMessageRelay<Tx>,
@@ -16,13 +18,17 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         super();
         this._unitOfWorkFactory = unitOfWorkFactory;
         this._channelRegistry = channelRegistry;
+        this._messageRelayerMutex = new Mutex;
     }
 
     public async execute(): Promise<void> {
         try {
+            await this._messageRelayerMutex.acquire();
             await this.relayAndSave();
         } catch (e) {
             console.error(e);
+        } finally {
+            this._messageRelayerMutex.release();
         }
     }
 
