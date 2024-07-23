@@ -9,9 +9,9 @@ export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx exten
 }
 
 export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
-    private _channelRegistry: api.ChannelRegistry<Tx>;
+    private _channelRegistry: api.ChannelRegistry;
 
-    constructor(channelRegistry: api.ChannelRegistry<Tx>) {
+    constructor(channelRegistry: api.ChannelRegistry) {
         this._channelRegistry = channelRegistry;
     }
 

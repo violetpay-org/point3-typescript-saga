@@ -8,7 +8,6 @@ export abstract class BatchJob {
 export class BatchJobScheduler {
     private _jobs: BatchJob[] = [];
     
-
     public addJob(job: BatchJob): void {
         this._jobs.push(job);
     }

@@ -6,6 +6,7 @@ import * as endpoint from "../Endpoint/index";
 import * as planning from "../SagaPlanning/index";
 import * as saga from "../SagaSession/index";
 import { randomUUID } from "crypto";
+import { Mutex } from "async-mutex";
 import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
 
 import { Constructor } from "../../common/syntex";
@@ -37,14 +38,16 @@ export abstract class AbstractSaga<
 export class SagaRegistry<Tx extends TxContext> {
     protected sagas: Array<
         AbstractSaga<
-            Tx, 
-            saga.SagaSessionArguments, 
+            Tx,
+            saga.SagaSessionArguments,
             saga.SagaSession
         >> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
+    private registryMutex: Mutex;
 
     constructor(orchestrator: SagaOrchestrator<Tx>) {
         this.orchestrator = orchestrator;
+        this.registryMutex = new Mutex;
     }
 
     public hasSagaWithName(sageName: string): boolean {
@@ -61,17 +64,26 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public async consumeEvent<M extends endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>>(message: M) {
         const sagaId = message.getSagaMessage().getSagaId();
-        try {
-            for (const saga of this.sagas) {
-                // If multiple saga is found for the same message, ... (To be described)
-                if (saga.hasPublishedSagaWithId(sagaId)) {
-                    await this.orchestrator.orchestrate(saga, message);
-                }
+        const orchestrations = [];
+
+        await this.registryMutex.acquire();
+        for (const saga of this.sagas) {
+            // If multiple saga is found for the same message, ... (To be described)
+            if (saga.hasPublishedSagaWithId(sagaId)) {
+                orchestrations.push(async () => {
+                    await this.orchestrator.orchestrate(saga, message)
+                });
             }
-        } catch (error) {
-            console.error(error);
-            throw ErrEventConsumptionError;
         }
+        this.registryMutex.release();
+
+        orchestrations.forEach(async (orchestration) => {
+            try {
+                await orchestration();
+            } catch (e) {
+                throw ErrEventConsumptionError;
+            }
+        });
     }
 
     public async startSaga<
@@ -83,7 +95,9 @@ export class SagaRegistry<Tx extends TxContext> {
         sessionArg: A,
         sagaClass: Constructor<AbstractSaga<Tx, A, I>>,
     ) {
+        await this.registryMutex.acquire();
         const saga = this.sagas.find(saga => saga.getName() === sagaName);
+        this.registryMutex.release();
 
         if (!saga || !(saga instanceof sagaClass)) {
             throw ErrSagaNotFound
@@ -96,7 +110,7 @@ export class SagaRegistry<Tx extends TxContext> {
     }
 }
 
-export abstract class ChannelToSagaRegistry<M extends endpoint.AbstractSagaMessage, Tx extends TxContext> 
+export abstract class ChannelToSagaRegistry<M extends endpoint.AbstractSagaMessage, Tx extends TxContext>
     extends endpoint.AbstractChannel<M> {
     private _sagaRegistry: SagaRegistry<Tx>;
 

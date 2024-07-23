@@ -1,8 +1,6 @@
-import { uow } from "index";
-import { TxContext } from "../../UnitOfWork/main";
 import * as endpoint from "../Endpoint/index";
 
-export class ChannelRegistry<Tx extends TxContext> {
+export class ChannelRegistry {
     protected channels: Map<
         endpoint.ChannelName, 
         endpoint.Channel<endpoint.AbstractSagaMessage>

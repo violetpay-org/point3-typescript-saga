@@ -1,4 +1,3 @@
-import { Channel } from "diagnostics_channel";
 import { saga, endpoint, api } from "../Saga/index";
 import * as uow from "../UnitOfWork/main";
 import { TxContext } from "../UnitOfWork/main";
