@@ -72,7 +72,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         );
 
         for (const channelName of messagesSuccessfullyPublished.keys()) {
-            const channel = this._channelRegistry.getChannelByName(channelName);
+            const channel = await this._channelRegistry.getChannelByName(channelName);
             const messagesToDelete = messagesSuccessfullyPublished.get(channelName);
             await this.deleteDeadLetters(channel, messagesToDelete);
         }
@@ -87,14 +87,14 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         );
 
         for (const channelName of messagesFailedToPublish.keys()) {
-            const channel = this._channelRegistry.getChannelByName(channelName);
+            const channel = await this._channelRegistry.getChannelByName(channelName);
             const messages = messagesFailedToPublish.get(channelName);
             await this.deleteMessagesFromOutbox(channel, messages);
             await this.saveDeadLetters(channel, messages);
         }
 
         for (const channelName of messagesSuccessfullyPublished.keys()) {
-            const channel = this._channelRegistry.getChannelByName(channelName);
+            const channel = await this._channelRegistry.getChannelByName(channelName);
             const messagesToDelete = messagesSuccessfullyPublished.get(channelName);
             await this.deleteMessagesFromOutbox(channel, messagesToDelete);
         }
@@ -200,7 +200,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         failedMessagesMutex: Mutex,
         callback?: () => Promise<void>
     ) {
-        const channel = this._channelRegistry.getChannelByName(channelName);
+        const channel = await this._channelRegistry.getChannelByName(channelName);
 
         try {
             await channel.send(message);
@@ -261,7 +261,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[]
         > = new Map();
 
-        for (const channel of this._channelRegistry.getChannels()) {
+        for (const channel of await this._channelRegistry.getChannels()) {
             const messageRepo = channel.getRepository();
             var messages: endpoint.AbstractSagaMessage[] = [];
 

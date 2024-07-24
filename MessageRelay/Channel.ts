@@ -10,9 +10,11 @@ export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx exten
 
 export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
     private readonly _channelRegistry: api.ChannelRegistry;
+    private _channelMutex: Mutex;
 
     constructor(channelRegistry: api.ChannelRegistry) {
         this._channelRegistry = channelRegistry;
+        this._channelMutex = new Mutex;
     }
 
     // This is a type guard
@@ -21,20 +23,28 @@ export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
         return "getRepository" in channel;
     }
 
-    public getChannelByName(channelName: string): ChannelFromMessageRelay<AbstractSagaMessage, Tx> {
+    public async getChannelByName(channelName: string): Promise<ChannelFromMessageRelay<AbstractSagaMessage, Tx>> {
+        await this._channelMutex.acquire();
+        try {
+            const channel = this._channelRegistry.getChannelByName(channelName);
 
-        const channel = this._channelRegistry.getChannelByName(channelName);
+            if (!this.isChannelFromMessageRelay(channel)) {
+                return null;
+            }
 
-        if (!this.isChannelFromMessageRelay(channel)) {
-            return null;
+            return channel as ChannelFromMessageRelay<AbstractSagaMessage, Tx>;
+        } finally {
+            this._channelMutex.release();
         }
-
-        return channel as ChannelFromMessageRelay<AbstractSagaMessage, Tx>;
     }
 
-    public getChannels(): ChannelFromMessageRelay<AbstractSagaMessage, Tx>[] {
-        return this._channelRegistry.getChannels()
-            .filter(this.isChannelFromMessageRelay);
+    public async getChannels(): Promise<ChannelFromMessageRelay<AbstractSagaMessage, Tx>[]> {
+        try {
+            return this._channelRegistry.getChannels()
+                .filter(this.isChannelFromMessageRelay);
+        } finally {
+            this._channelMutex.release();
+        }
     }
 }
 
