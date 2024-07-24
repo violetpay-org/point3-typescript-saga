@@ -35,12 +35,13 @@ class RemainingBatchSize {
 }
 
 export class MessageRelayer<Tx extends TxContext> extends BatchJob {
-    private BATCH_SIZE = 500; // Dead letter batch size == Message batch size
+    private BATCH_SIZE: number; // Dead letter batch size == Message batch size
     private _channelRegistry: ChannelRegistryForMessageRelay<Tx>;
     private _unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>;
     private _messageRelayerMutex: Mutex;
 
     constructor(
+        batchSize: number,
         channelRegistry: ChannelRegistryForMessageRelay<Tx>,
         unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>
     ) {
@@ -48,6 +49,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         this._unitOfWorkFactory = unitOfWorkFactory;
         this._channelRegistry = channelRegistry;
         this._messageRelayerMutex = new Mutex;
+        this.BATCH_SIZE = batchSize;
     }
 
     public async execute(): Promise<void> {

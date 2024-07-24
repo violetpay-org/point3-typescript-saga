@@ -56,6 +56,7 @@ describe("MessageRelayer", () => {
 
     test("should successfully relay messages even if channel send fails sometime", async () => {
         const messageRelayer = new MessageRelayer(
+            500,
             channelRegistryForMessageRelay, 
             uowMemory.InMemoryUnitOfWorkFactory
         );
