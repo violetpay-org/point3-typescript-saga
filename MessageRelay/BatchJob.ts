@@ -19,18 +19,24 @@ export class BatchJobScheduler {
             throw new Error('Invalid sleep time');
         }
 
-        corn.schedule(`*/${sleep} * * * * *`, async () => {
+        const task = corn.schedule(`*/${sleep} * * * * *`, async () => {
             for (const job of this._jobs) {
                 await job.execute();
             }
         });
+
+        if (this._task) {
+            this._task.stop();
+        }
+
+        this._task = task;
     }
 
     public async deactivateJobs(): Promise<void> {
         if (!this._task) {
             throw new Error('No task to stop');
         }
-        
+
         this._task.stop();
     }
 }
