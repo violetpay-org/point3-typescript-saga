@@ -7,6 +7,7 @@ export abstract class BatchJob {
 
 export class BatchJobScheduler {
     private _jobs: BatchJob[] = [];
+    private _task: corn.ScheduledTask;
     
     public addJob(job: BatchJob): void {
         this._jobs.push(job);
@@ -23,5 +24,13 @@ export class BatchJobScheduler {
                 await job.execute();
             }
         });
+    }
+
+    public async deactivateJobs(): Promise<void> {
+        if (!this._task) {
+            throw new Error('No task to stop');
+        }
+        
+        this._task.stop();
     }
 }
