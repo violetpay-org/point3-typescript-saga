@@ -81,6 +81,7 @@ export class SagaRegistry<Tx extends TxContext> {
             try {
                 await orchestration();
             } catch (e) {
+                console.error(e);
                 throw ErrEventConsumptionError;
             }
         });
