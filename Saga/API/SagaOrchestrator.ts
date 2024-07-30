@@ -1,6 +1,6 @@
 import { TxContext, UnitOfWork, UnitOfWorkFactory } from "../../UnitOfWork/main";
 import { AbstractSaga } from "./SagaRegistry";
-import { ErrChannelNotFound, ErrDeadSagaSession, ErrSagaNotFound, ErrStepNotFound } from "../Errors/index";
+import { ErrChannelNotFound, ErrDeadSagaSession, ErrSagaNotFound, ErrSagaSessionNotFound, ErrStepNotFound } from "../Errors/index";
 
 import * as endpoint from "../Endpoint/index";
 import * as planning from "../SagaPlanning/index";
@@ -60,7 +60,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
             .getSagaRepository()
             .load(message.getSagaId());
         if (!sagaSession) {
-            throw ErrSagaNotFound;
+            throw ErrSagaSessionNotFound;
         }
 
         const currentStepName = sagaSession.getCurrentStepName();
