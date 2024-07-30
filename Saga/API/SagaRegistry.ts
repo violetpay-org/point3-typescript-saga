@@ -1,6 +1,6 @@
 import { TxContext } from "../../UnitOfWork/main";
 import { SagaOrchestrator } from "./SagaOrchestrator";
-import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrStepNotFound } from "../Errors/index";
+import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrSagaSessionNotFound, ErrStepNotFound } from "../Errors/index";
 
 import * as endpoint from "../Endpoint/index";
 import * as planning from "../SagaPlanning/index";
@@ -121,7 +121,17 @@ export abstract class ChannelToSagaRegistry<M extends endpoint.AbstractSagaMessa
     }
 
     public async send(command: AbstractSagaMessage): Promise<void> {
-        const commandWithOrigin = this.parseMessageWithOrigin(command as M);
-        return this._sagaRegistry.consumeEvent(commandWithOrigin);
+        try {
+            const commandWithOrigin = this.parseMessageWithOrigin(command as M);
+            return this._sagaRegistry.consumeEvent(commandWithOrigin);
+        } catch (e) {
+            if (e === ErrSagaSessionNotFound || 
+                e === ErrStepNotFound ||
+                e === ErrSagaNotFound) {
+                console.error(e); // this should be sent to a logger
+            } else {
+                throw e;
+            }
+        }
     }
 }
