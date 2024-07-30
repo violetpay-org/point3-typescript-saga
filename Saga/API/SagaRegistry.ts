@@ -81,7 +81,6 @@ export class SagaRegistry<Tx extends TxContext> {
             try {
                 await orchestration();
             } catch (e) {
-                console.error(e); // this should be sent to a logger
                 throw ErrEventConsumptionError;
             }
         });
