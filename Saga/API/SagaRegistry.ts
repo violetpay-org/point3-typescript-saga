@@ -81,7 +81,7 @@ export class SagaRegistry<Tx extends TxContext> {
             try {
                 await orchestration();
             } catch (e) {
-                throw ErrEventConsumptionError;
+                throw e;
             }
         });
     }
@@ -129,7 +129,7 @@ export abstract class ChannelToSagaRegistry<M extends endpoint.AbstractSagaMessa
                 e === ErrSagaNotFound) {
                 console.error(e); // this should be sent to a logger
             } else {
-                throw e;
+                throw ErrEventConsumptionError;
             }
         }
     }
