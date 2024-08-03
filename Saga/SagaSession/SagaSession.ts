@@ -1,20 +1,48 @@
-abstract class SagaState {
-    private _isFailed: boolean = false;
-    private _isCompensating: boolean = false;
-    private _isCompleted: boolean = false;
-    private _isPending: boolean = false;
+class SagaState {
+    _isFailed: boolean = false;
+    _isCompensating: boolean = false;
+    _isCompleted: boolean = false;
+    _isPending: boolean = false;
 
     // Compensation and retry phase can both have isRetrying == true
-    private _isRetrying: boolean = false;
+    _isRetrying: boolean = false;
 
-    protected _flagSetupForForwarding() {
+    constructor(
+        isFailed?: boolean,
+        isCompensating?: boolean,
+        isCompleted?: boolean,
+        isPending?: boolean,
+        isRetrying?: boolean
+    ) {
+        if (isFailed) {
+            this._isFailed = isFailed;
+        }
+
+        if (isCompensating) {
+            this._isCompensating = isCompensating;
+        }
+
+        if (isCompleted) {
+            this._isCompleted = isCompleted;
+        }
+
+        if (isPending) {
+            this._isPending = isPending;
+        }
+
+        if (isRetrying) {
+            this._isRetrying = isRetrying;
+        }
+    }
+
+    public flagSetupForForwarding() {
         this._isFailed = false;
         this._isCompleted = false;
         this._isRetrying = false;
         this._isCompensating = false;
     }
 
-    protected _flagSetupForCompletion() {
+    public flagSetupForCompletion() {
         this._isFailed = false;
         this._isCompleted = true;
         this._isRetrying = false;    
@@ -22,7 +50,7 @@ abstract class SagaState {
         this._isPending = false;    
     }
 
-    protected _flagSetupForFailure() {
+    public flagSetupForFailure() {
         this._isFailed = true;
         this._isCompleted = false;
         this._isRetrying = false;
@@ -30,27 +58,27 @@ abstract class SagaState {
         this._isPending = false;
     }
 
-    protected _flagSetupForMustComplete() {
+    public flagSetupForMustComplete() {
         this._isFailed = false;
         this._isCompleted = false;
         this._isRetrying = true;
         this._isCompensating = false;
     }
 
-    protected _flagSetupForCompensation() {
+    public flagSetupForCompensation() {
         this._isFailed = false;
         this._isCompleted = false;
         this._isRetrying = true;
         this._isCompensating = true;
     }
 
-    protected _flagSetupForPending() {
+    public flagSetupForPending() {
         this._isPending = true;
         this._isFailed = false;
         this._isCompleted = false;
     }
 
-    protected _flagSetupForFinishPending() {
+    public flagSetupForFinishPending() {
         this._isPending = false;
     }
 
@@ -83,13 +111,27 @@ abstract class SagaState {
 
 export interface SagaSessionArguments {}
 
-export abstract class SagaSession extends SagaState {
+export abstract class SagaSession {
     private _sagaId: string;
     private _currentStep: string;
+    private _state: SagaState;
 
-    constructor(sagaId: string) {
-        super();
+    constructor(
+        sagaId: string, 
+        currentStep?: string,
+        state?: SagaState
+    ) {
         this._sagaId = sagaId;
+
+        if (currentStep) {
+            this._currentStep = currentStep;
+        }
+
+        if (state) {
+            this._state = state;
+        } else {
+            this._state = new SagaState();
+        }
     }
 
     public getCurrentStepName(): string {
@@ -100,47 +142,63 @@ export abstract class SagaSession extends SagaState {
         return this._sagaId;
     }
 
+    public getSagaState(): SagaState {
+        return this._state;
+    }
+
     public updateCurrentStep(stepName: string) {
         this._currentStep = stepName;
     }
 
     public setCompensationState() {
-        this._flagSetupForCompensation();
+        this._state.flagSetupForCompensation();
     }
 
     public setMustCompleteState() {
-        this._flagSetupForMustComplete();
+        this._state.flagSetupForMustComplete();
     }
 
     public setCompletionState() {
-        this._flagSetupForCompletion();
+        this._state.flagSetupForCompletion();
     }
 
     public setFailureState() {
-        this._flagSetupForFailure();
+        this._state.flagSetupForFailure();
     }
 
     public setForwardState() {
-        this._flagSetupForForwarding();
+        this._state.flagSetupForForwarding();
     }
 
     public setPendingState() {
-        this._flagSetupForPending();
+        this._state.flagSetupForPending();
     }
 
     public unsetPendingState() {
-        this._flagSetupForPending
-    }
-}
-
-export class OrderPartialCancelsSagaSession extends SagaSession {
-    private _walletId: string;
-
-    setWalletId(walletId: string) {
-        this._walletId = walletId;
+        this._state.flagSetupForPending();
     }
 
-    getWalletId(): string {
-        return this._walletId;
+    public isInForwardDirection(): boolean {
+        return this._state.isInForwardDirection();
+    }
+
+    public isCompensating(): boolean {
+        return this._state.isCompensating();
+    }
+
+    public isFailed(): boolean {
+        return this._state.isFailed();
+    }
+
+    public isCompleted(): boolean {
+        return this._state.isCompleted();
+    }
+
+    public isRetryingInvocation(): boolean {
+        return !this._state.isRetryingInvocation();
+    }
+
+    public isPending(): boolean {
+        return this._state.isPending();
     }
 }

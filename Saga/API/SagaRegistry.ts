@@ -77,13 +77,9 @@ export class SagaRegistry<Tx extends TxContext> {
         }
         this.registryMutex.release();
 
-        orchestrations.forEach(async (orchestration) => {
-            try {
-                await orchestration();
-            } catch (e) {
-                throw e;
-            }
-        });
+        for (const orchestration of orchestrations) {
+            await orchestration();
+        }
     }
 
     public async startSaga<

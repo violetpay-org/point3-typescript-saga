@@ -30,7 +30,7 @@ import {
 } from "./repository";
 import { assert } from "console";
 import { SagaRegistry } from "../Saga/API/SagaRegistry";
-import { ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors/index";
+import { ErrChannelNotFound, ErrDeadSagaSession, ErrDuplicateSaga, ErrEventConsumptionError } from "../Saga/Errors/index";
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from "./endpoint";
 
 var successResRepo: InMemoryResponseRepository<ExampleSuccessResponse>;
@@ -545,18 +545,14 @@ describe("SagaOrchestrator", () => {
         var sagaSessions = Array.from(sagaRepo.getSessions());
         const sagaSession = sagaSessions[0];
 
-        var err: Error;
-
         try {
             await registry.consumeEvent(
                 new ExampleRequestChannel()
                     .parseMessageWithOrigin(new ExampleRequestCommand(sagaSession))
             );
         } catch (error) {
-            err = error;
+            expect(error).toBe(ErrChannelNotFound);
         }
-
-        expect(err).toBe(ErrEventConsumptionError);
 
         sagaSessions = Array.from(sagaRepo.getSessions());
         expect(sagaSessions[0].isPending()).toBeTruthy();
@@ -582,7 +578,6 @@ describe("SagaOrchestrator", () => {
 
         var sagaSessions = Array.from(sagaRepo.getSessions());
         const sagaSession = sagaSessions[0];
-        var err: Error;
 
         try {
             await registry.consumeEvent(
@@ -591,11 +586,9 @@ describe("SagaOrchestrator", () => {
                         "sagaId": sagaSession.getSagaId(),
                     }))
             );
-        } catch (error) {
-            err = error;
+        } catch (err) {
+            expect(err).toBe(ErrDeadSagaSession);
         }
-
-        expect(err).toBe(ErrEventConsumptionError);
 
         sagaSessions = Array.from(sagaRepo.getSessions());
         expect(sagaSessions[0].isCompleted()).toBeTruthy();
