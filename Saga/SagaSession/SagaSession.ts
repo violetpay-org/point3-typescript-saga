@@ -131,6 +131,7 @@ export abstract class SagaSession {
             this._state = state;
         } else {
             this._state = new SagaState();
+            this.setForwardState();
         }
     }
 
