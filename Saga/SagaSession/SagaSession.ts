@@ -151,6 +151,10 @@ export abstract class SagaSession {
         this._currentStep = stepName;
     }
 
+    public setState(state: SagaState) {
+        this._state = state;
+    }
+
     public setCompensationState() {
         this._state.flagSetupForCompensation();
     }
