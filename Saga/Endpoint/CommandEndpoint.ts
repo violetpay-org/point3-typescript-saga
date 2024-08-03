@@ -83,6 +83,7 @@ export abstract class Response implements AbstractSagaMessage {
 
         if (record.id != undefined) {
             this._id = record.id;
+            return this;
         }
 
         this._id = randomUUID();
