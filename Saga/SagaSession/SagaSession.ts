@@ -1,4 +1,4 @@
-class SagaState {
+export class SagaState {
     _isFailed: boolean = false;
     _isCompensating: boolean = false;
     _isCompleted: boolean = false;
