@@ -1,11 +1,11 @@
 export class SagaState {
-    _isFailed: boolean = false;
-    _isCompensating: boolean = false;
-    _isCompleted: boolean = false;
-    _isPending: boolean = false;
+    _isFailed: boolean;
+    _isCompensating: boolean;
+    _isCompleted: boolean;
+    _isPending: boolean;
 
     // Compensation and retry phase can both have isRetrying == true
-    _isRetrying: boolean = false;
+    _isRetrying: boolean;
 
     constructor(
         isFailed?: boolean,
@@ -14,6 +14,12 @@ export class SagaState {
         isPending?: boolean,
         isRetrying?: boolean
     ) {
+        this._isFailed = false;
+        this._isCompensating = false;
+        this._isCompleted = false;
+        this._isPending = false;
+        this._isRetrying = false;
+
         if (isFailed) {
             this._isFailed = isFailed;
         }
