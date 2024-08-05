@@ -1,15 +1,16 @@
 import { TxContext } from "../../UnitOfWork/main";
 import { SagaOrchestrator } from "./SagaOrchestrator";
-import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrSagaSessionNotFound, ErrStepNotFound } from "../Errors/index";
+import { ErrDuplicateSaga, ErrEventConsumptionError, ErrSagaNotFound, ErrSagaSessionNotFound, ErrStepNotFound } from "../Errors";
 
 import * as endpoint from "../Endpoint/index";
 import * as planning from "../SagaPlanning/index";
 import * as saga from "../SagaSession/index";
 import { randomUUID } from "crypto";
 import { Mutex } from "async-mutex";
-import { AbstractSagaMessage } from "../Endpoint/CommandEndpoint";
+import { AbstractSagaMessage } from "../Endpoint";
 
 import { Constructor } from "../../common/syntex";
+import { EventIdempotenceProvider } from "./EventIdenpotence";
 
 export abstract class AbstractSaga<
     Tx extends TxContext,
@@ -43,10 +44,12 @@ export class SagaRegistry<Tx extends TxContext> {
             saga.SagaSession
         >> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
+    private idempotenceProvider: EventIdempotenceProvider;
     private registryMutex: Mutex;
 
-    constructor(orchestrator: SagaOrchestrator<Tx>) {
+    constructor(orchestrator: SagaOrchestrator<Tx>, idempotenceProvider: EventIdempotenceProvider) {
         this.orchestrator = orchestrator;
+        this.idempotenceProvider = idempotenceProvider;
         this.registryMutex = new Mutex;
     }
 
@@ -63,6 +66,12 @@ export class SagaRegistry<Tx extends TxContext> {
     }
 
     public async consumeEvent<M extends endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>>(message: M) {
+        const marked = await this.idempotenceProvider.markAsConsumed(message.getSagaMessage().getId());
+        if (!marked) {
+            // 이미 처리된 이벤트. 무시
+            return;
+        }
+
         const sagaId = message.getSagaMessage().getSagaId();
         const orchestrations = [];
 
