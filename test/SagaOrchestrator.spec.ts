@@ -310,7 +310,7 @@ describe('SagaOrchestrator', () => {
         expect(sagaSessions[0].isCompleted()).toBeTruthy();
     });
 
-    it.skip('should be consumed same message when orchestration failed');
+    it.todo('should be consumed same message when orchestration failed');
 
     it('should invoke next step local endpoint when the step successfully completes invoking the current endpoint', async () => {
         const STEP_1 = 'localStep1';
