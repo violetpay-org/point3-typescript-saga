@@ -54,17 +54,21 @@ export abstract class MessageIdempotenceProvider {
         return this.keyLocker.release(message.getId());
     }
 
+    // lock에 성공할 시 return, 실패할 시 무조건 throw Error 를 해야합니다.
     protected abstract lockKey(messageKey: string): Promise<void>;
+
+    // release에 성공 실패와 관련 없이 return 만 되면 됩니다.
     protected abstract releaseKey(messageKey: string): Promise<void>;
 
     public async lock(message: AbstractSagaMessage): Promise<boolean> {
         try {
-            const locked = await this.memoryLock(message);
-            if (!locked) {
+            const lockSucceed = await this.memoryLock(message);
+            if (!lockSucceed) {
                 return false;
             }
 
             await this.lockKey(message.getId());
+            return true;
         } catch (e) {
             await this.memoryRelease(message);
             return false;
