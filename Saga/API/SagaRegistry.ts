@@ -48,7 +48,7 @@ export class SagaRegistry<Tx extends TxContext> {
     private messageIdempotence: MessageIdempotenceProvider;
     private registryMutex: Mutex;
 
-    constructor(orchestrator: SagaOrchestrator<Tx>, idempotenceProvider: MessageIdempotenceProvider) {
+    constructor(orchestrator: SagaOrchestrator<Tx>, idempotenceProvider?: MessageIdempotenceProvider) {
         this.orchestrator = orchestrator;
         this.messageIdempotence = idempotenceProvider;
         this.registryMutex = new Mutex();
@@ -68,10 +68,12 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public async consumeEvent<M extends endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>>(message: M) {
         try {
-            const succeed = await this.messageIdempotence.lock(message.getSagaMessage());
-            if (!succeed) {
-                // 이미 처리된 이벤트. 무시
-                return;
+            if (this.messageIdempotence) {
+                const succeed = await this.messageIdempotence.lock(message.getSagaMessage());
+                if (!succeed) {
+                    // 이미 처리된 이벤트. 무시
+                    return;
+                }
             }
 
             const sagaId = message.getSagaMessage().getSagaId();
@@ -91,8 +93,13 @@ export class SagaRegistry<Tx extends TxContext> {
             for (const orchestration of orchestrations) {
                 await orchestration();
             }
+
+            // No saga found for the message, ignore
         } catch (e) {
-            await this.messageIdempotence.release(message.getSagaMessage());
+            if (this.messageIdempotence) {
+                await this.messageIdempotence.release(message.getSagaMessage());
+            }
+
             throw e;
         }
     }
