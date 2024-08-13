@@ -60,7 +60,7 @@ export class SagaRegistry<Tx extends TxContext> {
 
     public registerSaga(saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>) {
         if (this.hasSagaWithName(saga.getName())) {
-            throw ErrDuplicateSaga;
+            throw new ErrDuplicateSaga();
         }
 
         this.sagas.push(saga);
@@ -114,7 +114,7 @@ export class SagaRegistry<Tx extends TxContext> {
         this.registryMutex.release();
 
         if (!saga || !(saga instanceof sagaClass)) {
-            throw ErrSagaNotFound;
+            throw new ErrSagaNotFound();
         }
 
         await this.orchestrator.startSaga<A, I>(sessionArg, saga as AbstractSaga<TxContext, A, I>);
@@ -137,10 +137,10 @@ export abstract class ChannelToSagaRegistry<
             const commandWithOrigin = this.parseMessageWithOrigin(command as M);
             return this._sagaRegistry.consumeEvent(commandWithOrigin);
         } catch (e) {
-            if (e === ErrSagaSessionNotFound || e === ErrStepNotFound || e === ErrSagaNotFound) {
+            if (e instanceof ErrSagaSessionNotFound || e instanceof ErrStepNotFound || e instanceof ErrSagaNotFound) {
                 console.error(e); // this should be sent to a logger
             } else {
-                throw ErrEventConsumptionError;
+                throw new ErrEventConsumptionError();
             }
         }
     }
