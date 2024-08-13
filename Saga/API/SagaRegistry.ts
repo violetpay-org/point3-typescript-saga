@@ -1,6 +1,7 @@
 import { TxContext } from '../../UnitOfWork/main';
 import { SagaOrchestrator } from './SagaOrchestrator';
 import {
+    ErrDeadSagaSession,
     ErrDuplicateSaga,
     ErrEventConsumptionError,
     ErrSagaNotFound,
@@ -135,10 +136,15 @@ export abstract class ChannelToSagaRegistry<
     public async send(command: AbstractSagaMessage): Promise<void> {
         try {
             const commandWithOrigin = this.parseMessageWithOrigin(command as M);
-            return this._sagaRegistry.consumeEvent(commandWithOrigin);
+            return await this._sagaRegistry.consumeEvent(commandWithOrigin);
         } catch (e) {
-            if (e instanceof ErrSagaSessionNotFound || e instanceof ErrStepNotFound || e instanceof ErrSagaNotFound) {
-                console.error(e); // this should be sent to a logger
+            if (
+                e instanceof ErrSagaSessionNotFound ||
+                e instanceof ErrStepNotFound ||
+                e instanceof ErrSagaNotFound ||
+                e instanceof ErrDeadSagaSession
+            ) {
+                console.info(e); // this should be sent to a logger
             } else {
                 throw new ErrEventConsumptionError();
             }
