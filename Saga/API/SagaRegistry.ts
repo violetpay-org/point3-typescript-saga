@@ -1,6 +1,7 @@
 import { TxContext } from '../../UnitOfWork/main';
 import { SagaOrchestrator } from './SagaOrchestrator';
 import {
+    ErrChannelNotFound,
     ErrDeadSagaSession,
     ErrDuplicateSaga,
     ErrEventConsumptionError,
@@ -140,12 +141,14 @@ export abstract class ChannelToSagaRegistry<
         } catch (e) {
             if (
                 e instanceof ErrSagaSessionNotFound ||
+                e instanceof ErrChannelNotFound ||
                 e instanceof ErrStepNotFound ||
                 e instanceof ErrSagaNotFound ||
                 e instanceof ErrDeadSagaSession
             ) {
                 console.info(e); // this should be sent to a logger
             } else {
+                console.error(e);
                 throw new ErrEventConsumptionError();
             }
         }
