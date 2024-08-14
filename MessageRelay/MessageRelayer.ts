@@ -1,9 +1,9 @@
-import { saga, endpoint, api } from "../Saga/index";
-import { Mutex } from "async-mutex";
-import * as uow from "../UnitOfWork/main";
-import { TxContext } from "../UnitOfWork/main";
-import { BatchJob } from "./BatchJob";
-import { ChannelFromMessageRelay, ChannelRegistryForMessageRelay } from "./Channel";
+import { saga, endpoint, api } from '../Saga/index';
+import { Mutex } from 'async-mutex';
+import * as uow from '../UnitOfWork/main';
+import { TxContext } from '../UnitOfWork/main';
+import { BatchJob } from './BatchJob';
+import { ChannelFromMessageRelay, ChannelRegistryForMessageRelay } from './Channel';
 
 class RemainingBatchSize {
     private remainingBatchSize: number;
@@ -11,7 +11,7 @@ class RemainingBatchSize {
 
     constructor(initialBatchSize: number) {
         this.remainingBatchSize = initialBatchSize;
-        this.mutex = new Mutex;
+        this.mutex = new Mutex();
     }
 
     async decrease() {
@@ -43,12 +43,12 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     constructor(
         batchSize: number,
         channelRegistry: ChannelRegistryForMessageRelay<Tx>,
-        unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>
+        unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>,
     ) {
         super();
         this._unitOfWorkFactory = unitOfWorkFactory;
         this._channelRegistry = channelRegistry;
-        this._messageRelayerMutex = new Mutex;
+        this._messageRelayerMutex = new Mutex();
         this.BATCH_SIZE = batchSize;
     }
 
@@ -77,7 +77,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
             await this.deleteDeadLetters(channel, messagesToDelete);
         }
 
-        if (await remainingBatchSize.get() <= 0) {
+        if ((await remainingBatchSize.get()) <= 0) {
             return;
         }
 
@@ -106,53 +106,49 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
     ) {
         const unitOfWork = this._unitOfWorkFactory();
 
-        const deadLetterSaver = channel
-            .getRepository()
-            .saveDeadLetters(deadLetters);
+        const deadLetterSaver = channel.getRepository().saveDeadLetters(deadLetters);
 
         unitOfWork.addToWork(deadLetterSaver);
-        unitOfWork.Commit();
+        await unitOfWork.Commit();
     }
 
     private async deleteMessagesFromOutbox<M extends endpoint.AbstractSagaMessage>(
         channel: ChannelFromMessageRelay<M, Tx>,
         messages: M[],
     ) {
-        messages.forEach((message) => {
-            const unitOfWork = this._unitOfWorkFactory()
+        for (const message of messages) {
+            const unitOfWork = this._unitOfWorkFactory();
 
-            const deleter = channel
-                .getRepository()
-                .deleteMessage(message.getId());
+            const deleter = channel.getRepository().deleteMessage(message.getId());
 
             unitOfWork.addToWork(deleter);
-            unitOfWork.Commit();
-        });
+            await unitOfWork.Commit();
+        }
     }
 
     private async deleteDeadLetters<M extends endpoint.AbstractSagaMessage>(
         channel: ChannelFromMessageRelay<M, Tx>,
         deadLetters: M[],
     ) {
-        const unitOfWork = this._unitOfWorkFactory()
+        const unitOfWork = this._unitOfWorkFactory();
 
         // 이거 한꺼번에 지우는건 좀 위험할 수도 있음
-        // 메모리에 올라가는 메시지가 많아지면 문제가 생길 수 있고, 
+        // 메모리에 올라가는 메시지가 많아지면 문제가 생길 수 있고,
         // 트랜잭션 시 한번에 업데이트하는 양이 많아지면 또한 문제가 생길 수 있음
         const deadLettersDeleter = channel
             .getRepository()
             .deleteDeadLetters(deadLetters.map((message) => message.getId()));
 
         unitOfWork.addToWork(deadLettersDeleter);
-        unitOfWork.Commit();
+        await unitOfWork.Commit();
     }
 
     private async publishMessages(
         batchSize: RemainingBatchSize,
-        fromDeadLetters?: boolean
+        fromDeadLetters?: boolean,
     ): Promise<{
-        messagesFailedToPublish: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
-        messagesSuccessfullyPublished: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
+        messagesFailedToPublish: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>;
+        messagesSuccessfullyPublished: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>;
     }> {
         const assignedBatchSize = await batchSize.get();
         const messagesFailedToPublish = new Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>();
@@ -160,10 +156,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         const messagesFailedToPublishMutex = new Mutex();
         const messagesSuccessfullyPublishedMutex = new Mutex();
 
-        const messagesByChannel = await this.getRelayingMessages(
-            assignedBatchSize,
-            fromDeadLetters,
-        );
+        const messagesByChannel = await this.getRelayingMessages(assignedBatchSize, fromDeadLetters);
 
         for (let channelName of messagesByChannel.keys()) {
             messagesFailedToPublish.set(channelName, []);
@@ -179,9 +172,9 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
                         messagesFailedToPublish,
                         messagesSuccessfullyPublishedMutex,
                         messagesFailedToPublishMutex,
-                        batchSize.decrease.bind(batchSize) // decrease remaining batch size
-                    )
-                })
+                        batchSize.decrease.bind(batchSize), // decrease remaining batch size
+                    );
+                }),
             );
         }
 
@@ -198,26 +191,16 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         failedMessages: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
         successfulMessagesMutex: Mutex,
         failedMessagesMutex: Mutex,
-        callback?: () => Promise<void>
+        callback?: () => Promise<void>,
     ) {
         const channel = await this._channelRegistry.getChannelByName(channelName);
 
         try {
             await channel.send(message);
-            await this.pushToResultMap(
-                channelName,
-                successfulMessages,
-                successfulMessagesMutex,
-                message
-            );
+            await this.pushToResultMap(channelName, successfulMessages, successfulMessagesMutex, message);
         } catch (e) {
             console.error(e); // this should be sent to a logger
-            await this.pushToResultMap(
-                channelName,
-                failedMessages,
-                failedMessagesMutex,
-                message
-            );
+            await this.pushToResultMap(channelName, failedMessages, failedMessagesMutex, message);
         }
 
         if (callback) {
@@ -229,7 +212,7 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         channelName: endpoint.ChannelName,
         map: Map<endpoint.ChannelName, endpoint.AbstractSagaMessage[]>,
         mapMutex: Mutex,
-        message: endpoint.AbstractSagaMessage
+        message: endpoint.AbstractSagaMessage,
     ) {
         await mapMutex.acquire();
         try {
@@ -245,15 +228,10 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
 
     private async getRelayingMessages(
         batchSize: number,
-        fromDeadLetters?: boolean
-    ): Promise<
-        Map<
-            endpoint.ChannelName,
-            endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[]
-        >
-    > {
+        fromDeadLetters?: boolean,
+    ): Promise<Map<endpoint.ChannelName, endpoint.AbstractSagaMessageWithOrigin<endpoint.AbstractSagaMessage>[]>> {
         if (batchSize <= 0) {
-            throw new Error("Batch size must be greater than 0");
+            throw new Error('Batch size must be greater than 0');
         }
 
         const messagesByChannel: Map<
@@ -284,5 +262,3 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         return messagesByChannel;
     }
 }
-
-
