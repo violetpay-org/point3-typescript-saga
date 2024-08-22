@@ -498,7 +498,7 @@ describe('SagaOrchestrator', () => {
                 new ExampleRequestChannel().parseMessageWithOrigin(new ExampleRequestCommand(sagaSession)),
             );
         } catch (error) {
-            expect(error).toBe(ErrChannelNotFound);
+            expect(error).toBeInstanceOf(ErrChannelNotFound);
         }
 
         sagaSessions = Array.from(sagaRepo.getSessions());
@@ -526,7 +526,7 @@ describe('SagaOrchestrator', () => {
                 ),
             );
         } catch (err) {
-            expect(err).toBe(ErrDeadSagaSession);
+            expect(err).toBeInstanceOf(ErrDeadSagaSession);
         }
 
         sagaSessions = Array.from(sagaRepo.getSessions());
