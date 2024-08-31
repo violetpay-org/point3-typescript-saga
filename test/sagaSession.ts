@@ -1,8 +1,9 @@
-import * as point3Saga from "../Saga/index";
-import { Executable, TxContext } from "../UnitOfWork/main";
+import * as point3Saga from '../Saga/index';
+import { Executable, TxContext } from '../UnitOfWork/main';
+import { cloneDeep } from 'lodash';
 
 export class ExampleSagaSessionArguments2 implements point3Saga.saga.SagaSessionArguments {
-    private readonly _arg2: string = "arg2";
+    private readonly _arg2: string = 'arg2';
 
     public getArg2(): string {
         return this._arg2;
@@ -10,7 +11,7 @@ export class ExampleSagaSessionArguments2 implements point3Saga.saga.SagaSession
 }
 
 export class ExampleSagaSessionArguments implements point3Saga.saga.SagaSessionArguments {
-    private readonly _arg1: string = "arg1";
+    private readonly _arg1: string = 'arg1';
 
     public getArg1(): string {
         return this._arg1;
@@ -23,11 +24,7 @@ export class ExampleSagaSession extends point3Saga.saga.SagaSession {
     }
 }
 
-
-export class InMemoryExampleSagaSaver implements point3Saga.saga.SagaSessionRepository<
-    TxContext,
-    ExampleSagaSession
-> {
+export class InMemoryExampleSagaSaver implements point3Saga.saga.SagaSessionRepository<TxContext, ExampleSagaSession> {
     private readonly _sessions: Map<string, ExampleSagaSession> = new Map();
 
     constructor() {}
@@ -40,16 +37,23 @@ export class InMemoryExampleSagaSaver implements point3Saga.saga.SagaSessionRepo
     }
 
     load(sagaSessionId: string): Promise<ExampleSagaSession> {
-        if (!this._sessions.has(sagaSessionId)) {
+        const deepCopiedSession = cloneDeep(this._sessions);
+
+        if (!deepCopiedSession.has(sagaSessionId)) {
             console.log(`Session ${sagaSessionId} not found`);
             return Promise.resolve(null);
         }
-        return Promise.resolve(this._sessions.get(sagaSessionId));
+        return Promise.resolve(deepCopiedSession.get(sagaSessionId));
     }
 
     // For testing purposes only
     getSessions(): IterableIterator<ExampleSagaSession> {
-        return this._sessions.values();
+        const deepCopiedSessions: ExampleSagaSession[] = [];
+        for (const session of this._sessions.values()) {
+            deepCopiedSessions.push(cloneDeep(session));
+        }
+
+        return deepCopiedSessions.values();
     }
 
     getSagaSessionsAsMap(): Map<string, ExampleSagaSession> {

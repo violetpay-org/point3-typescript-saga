@@ -140,7 +140,7 @@ describe('SagaOrchestrator', () => {
 
         await registry.startSaga(ExampleSaga.getName(), new ExampleSagaSessionArguments(), ExampleSaga);
 
-        const sagaSessions = Array.from(sagaRepo.getSessions());
+        let sagaSessions = Array.from(sagaRepo.getSessions());
         const sagaSession = sagaSessions[0];
 
         await registry.consumeEvent(
@@ -150,6 +150,8 @@ describe('SagaOrchestrator', () => {
                 }),
             ),
         );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
 
         expect(sagaSessions[0].isCompleted()).toBeTruthy();
     });
@@ -201,7 +203,7 @@ describe('SagaOrchestrator', () => {
 
         await registry.startSaga(ExampleSaga.getName(), new ExampleSagaSessionArguments(), ExampleSaga);
 
-        const sagaSessions = Array.from(sagaRepo.getSessions());
+        let sagaSessions = Array.from(sagaRepo.getSessions());
         const sagaSession = sagaSessions[0];
 
         await registry.consumeEvent(
@@ -211,6 +213,8 @@ describe('SagaOrchestrator', () => {
                 }),
             ),
         );
+
+        sagaSessions = Array.from(sagaRepo.getSessions());
 
         expect(sagaSessions[0].isFailed()).toBeTruthy();
     });
@@ -490,7 +494,7 @@ describe('SagaOrchestrator', () => {
 
         await registry.startSaga(ExampleSaga.getName(), new ExampleSagaSessionArguments(), ExampleSaga);
 
-        var sagaSessions = Array.from(sagaRepo.getSessions());
+        let sagaSessions = Array.from(sagaRepo.getSessions());
         const sagaSession = sagaSessions[0];
 
         try {
