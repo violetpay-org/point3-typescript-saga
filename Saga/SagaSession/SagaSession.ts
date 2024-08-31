@@ -12,7 +12,7 @@ export class SagaState {
         isCompensating?: boolean,
         isCompleted?: boolean,
         isPending?: boolean,
-        isRetrying?: boolean
+        isRetrying?: boolean,
     ) {
         this._isFailed = false;
         this._isCompensating = false;
@@ -51,9 +51,9 @@ export class SagaState {
     public flagSetupForCompletion() {
         this._isFailed = false;
         this._isCompleted = true;
-        this._isRetrying = false;    
+        this._isRetrying = false;
         this._isCompensating = false;
-        this._isPending = false;    
+        this._isPending = false;
     }
 
     public flagSetupForFailure() {
@@ -89,9 +89,7 @@ export class SagaState {
     }
 
     public isInForwardDirection(): boolean {
-        return !this._isCompensating &&
-               !this._isCompleted &&
-               !this._isFailed;
+        return !this._isCompensating && !this._isCompleted && !this._isFailed;
     }
 
     public isCompensating(): boolean {
@@ -122,11 +120,7 @@ export abstract class SagaSession {
     private _currentStep: string;
     private _state: SagaState;
 
-    constructor(
-        sagaId: string, 
-        currentStep?: string,
-        state?: SagaState
-    ) {
+    constructor(sagaId: string, currentStep?: string, state?: SagaState) {
         this._sagaId = sagaId;
 
         if (currentStep) {
@@ -186,7 +180,7 @@ export abstract class SagaSession {
     }
 
     public unsetPendingState() {
-        this._state.flagSetupForPending();
+        this._state.flagSetupForFinishPending();
     }
 
     public isInForwardDirection(): boolean {
