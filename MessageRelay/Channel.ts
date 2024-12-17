@@ -66,21 +66,22 @@ export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx e
 }
 
 export abstract class BaseRemoteCommandChannel<
+        C extends endpoint.Command<S, A>,
         S extends saga.SagaSession,
         A extends endpoint.CommandArguments,
         Tx extends TxContext,
     >
-    extends endpoint.AbstractChannel<endpoint.Command<S, A>>
-    implements ChannelFromMessageRelay<endpoint.Command<S, A>, Tx>
+    extends endpoint.AbstractChannel<C>
+    implements ChannelFromMessageRelay<C, Tx>
 {
-    private _repository: endpoint.CommandRepository<endpoint.Command<S, A>, Tx>;
+    private _repository: endpoint.CommandRepository<C, Tx>;
 
-    constructor(repository: endpoint.CommandRepository<endpoint.Command<S, A>, Tx>) {
+    constructor(repository: endpoint.CommandRepository<C, Tx>) {
         super();
         this._repository = repository;
     }
 
-    getRepository(): endpoint.CommandRepository<endpoint.Command<S, A>, Tx> {
+    getRepository(): endpoint.CommandRepository<C, Tx> {
         return this._repository;
     }
 }
