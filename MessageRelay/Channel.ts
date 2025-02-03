@@ -60,6 +60,9 @@ export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx e
         this._repository = repository;
     }
 
+    protected abstract beforeConsumed(message: R): Promise<void>;
+    protected abstract afterConsumed(message: R): Promise<void>;
+
     getRepository(): endpoint.ResponseRepository<R, Tx> {
         return this._repository;
     }
