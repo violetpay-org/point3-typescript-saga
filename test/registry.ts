@@ -1,11 +1,10 @@
 import * as point3Saga from '../Saga/index';
-import { InMemoryTxContext, InMemoryUnitOfWork } from '../UnitOfWork/inMemory';
 import { InMemoryMessageIdempotenceProvider } from './idempotence';
+import { InMemoryTransactionContext } from '../Saga/Endpoint';
 
-export class InMemoryExampleSagaRegistry extends point3Saga.api.SagaRegistry<InMemoryTxContext> {
+export class InMemoryExampleSagaRegistry extends point3Saga.api.SagaRegistry<InMemoryTransactionContext> {
     constructor() {
-        const unitOfWorkFactory = InMemoryUnitOfWork.unitOfWorkFactory;
-        const sagaOrchestrator = new point3Saga.api.BaseSagaOrchestrator(unitOfWorkFactory);
+        const sagaOrchestrator = new point3Saga.api.BaseSagaOrchestrator();
         const idempotenceProvider = new InMemoryMessageIdempotenceProvider();
         super(sagaOrchestrator, idempotenceProvider);
     }

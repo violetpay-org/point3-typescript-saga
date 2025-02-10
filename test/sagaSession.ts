@@ -1,6 +1,6 @@
 import * as point3Saga from '../Saga/index';
-import { Executable, TxContext } from '../UnitOfWork/main';
 import { cloneDeep } from 'lodash';
+import { TransactionContext } from '@tranjs/core';
 
 export class ExampleSagaSessionArguments2 implements point3Saga.saga.SagaSessionArguments {
     private readonly _arg2: string = 'arg2';
@@ -24,19 +24,20 @@ export class ExampleSagaSession extends point3Saga.saga.SagaSession {
     }
 }
 
-export class InMemoryExampleSagaSaver implements point3Saga.saga.SagaSessionRepository<TxContext, ExampleSagaSession> {
+export class InMemoryExampleSagaSaver
+    implements point3Saga.saga.SagaSessionRepository<TransactionContext, ExampleSagaSession>
+{
     private readonly _sessions: Map<string, ExampleSagaSession> = new Map();
 
     constructor() {}
 
-    saveTx(sagaSession: ExampleSagaSession): Executable<TxContext> {
-        return async (tx: TxContext) => {
-            this._sessions.set(sagaSession.getSagaId(), sagaSession);
-            console.log(`Saved session ${sagaSession.getSagaId()}`);
-        };
+    async saveTx(sagaSession: ExampleSagaSession) {
+        this._sessions.set(sagaSession.getSagaId(), sagaSession);
+
+        return console.log(`Session ${sagaSession.getSagaId()} ${sagaSession.getCurrentStepName()} `);
     }
 
-    load(sagaSessionId: string): Promise<ExampleSagaSession> {
+    async load(sagaSessionId: string): Promise<ExampleSagaSession> {
         const deepCopiedSession = cloneDeep(this._sessions);
 
         if (!deepCopiedSession.has(sagaSessionId)) {

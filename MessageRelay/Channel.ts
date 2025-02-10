@@ -1,14 +1,14 @@
 import { AbstractSagaMessage } from 'Saga/Endpoint';
 import { endpoint, api, saga } from '../Saga/index';
-import { TxContext } from 'UnitOfWork/main';
 import { Mutex } from 'async-mutex';
+import { TransactionContext } from '@tranjs/core';
 
-export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends TxContext>
+export interface ChannelFromMessageRelay<C extends AbstractSagaMessage, Tx extends TransactionContext>
     extends endpoint.Channel<C> {
     getRepository(): endpoint.AbstractMessageRepository<C, Tx>;
 }
 
-export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
+export class ChannelRegistryForMessageRelay<Tx extends TransactionContext> {
     private readonly _channelRegistry: api.ChannelRegistry;
     private _channelMutex: Mutex;
 
@@ -49,7 +49,7 @@ export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
     }
 }
 
-export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx extends TxContext>
+export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx extends TransactionContext>
     extends api.ChannelToSagaRegistry<R, Tx>
     implements ChannelFromMessageRelay<R, Tx>
 {
@@ -72,7 +72,7 @@ export abstract class BaseRemoteCommandChannel<
         C extends endpoint.Command<S, A>,
         S extends saga.SagaSession,
         A extends endpoint.CommandArguments,
-        Tx extends TxContext,
+        Tx extends TransactionContext,
     >
     extends endpoint.AbstractChannel<C>
     implements ChannelFromMessageRelay<C, Tx>

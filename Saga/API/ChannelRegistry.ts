@@ -1,19 +1,13 @@
-import { Mutex } from "async-mutex";
-import * as endpoint from "../Endpoint/index";
+import * as endpoint from '../Endpoint/index';
 
 export class ChannelRegistry {
-    protected channels: Map<
-        endpoint.ChannelName, 
-        endpoint.Channel<endpoint.AbstractSagaMessage>
-    >;
+    protected channels: Map<endpoint.ChannelName, endpoint.Channel<endpoint.AbstractSagaMessage>>;
 
     constructor() {
         this.channels = new Map();
     }
 
-    public registerChannel(
-        channel: endpoint.Channel<endpoint.AbstractSagaMessage>
-    ) {
+    public registerChannel(channel: endpoint.Channel<endpoint.AbstractSagaMessage>) {
         if (this.hasChannelWithName(channel.getChannelName())) {
             throw new Error(`Channel with name ${channel.getChannelName()} already exists`);
         }
@@ -37,4 +31,3 @@ export class ChannelRegistry {
         return Array.from(this.channels.values());
     }
 }
-
