@@ -1,31 +1,21 @@
-import { TxContext, UnitOfWork, UnitOfWorkFactory } from '../../UnitOfWork/main';
 import { AbstractSaga } from './SagaRegistry';
-import {
-    ErrChannelNotFound,
-    ErrDeadSagaSession,
-    ErrSagaNotFound,
-    ErrSagaSessionNotFound,
-    ErrStepNotFound,
-} from '../Errors/index';
+import { ErrChannelNotFound, ErrDeadSagaSession, ErrSagaSessionNotFound, ErrStepNotFound } from '../Errors/index';
 
 import * as endpoint from '../Endpoint/index';
 import * as planning from '../SagaPlanning/index';
 import * as saga from '../SagaSession/index';
 import { AbstractSagaMessage } from '../Endpoint/CommandEndpoint';
 import { ChannelName } from '../Endpoint/Channel';
+import { Propagation, Transactional, TransactionContext } from '@tranjs/core';
 
-export abstract class SagaOrchestrator<Tx extends TxContext> {
-    private unitOfWorkFactory: UnitOfWorkFactory<Tx>;
+export abstract class SagaOrchestrator<Tx extends TransactionContext> {
+    constructor() {}
 
-    constructor(unitOfWorkFactory: UnitOfWorkFactory<Tx>) {
-        this.unitOfWorkFactory = unitOfWorkFactory;
-    }
-
+    @Transactional(Propagation.REQUIRES_NEW)
     public async startSaga<A extends saga.SagaSessionArguments, I extends saga.SagaSession>(
         sagaSessionArg: A,
         saga: AbstractSaga<Tx, A, I>,
     ) {
-        const unitOfWork = this.unitOfWorkFactory();
         const sagaSession = await saga.createSession(sagaSessionArg);
         const sagaDefinition = saga.getDefinition();
         const firstStep = sagaDefinition.getFirstStep();
@@ -37,19 +27,18 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         sagaSession.updateCurrentStep(firstStep.getStepName());
         sagaSession.setForwardState();
 
-        const sagaSaver = saga.getSagaRepository().saveTx(sagaSession);
-        unitOfWork.addToWork(sagaSaver);
-
         if (firstStep.isInvocable()) {
-            await this.invokeStep(sagaSession, firstStep, unitOfWork);
+            await this.invokeStep(sagaSession, firstStep);
         } else {
-            await this.stepForwardAndInvoke(sagaSession, firstStep, sagaDefinition, unitOfWork);
+            await this.stepForwardAndInvoke(sagaSession, firstStep, sagaDefinition);
         }
 
-        await unitOfWork.Commit();
+        await saga.getSagaRepository().saveTx(sagaSession);
+
         return;
     }
 
+    @Transactional(Propagation.REQUIRES_NEW)
     public async orchestrate(
         saga: AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>,
         messageWithOrigin: endpoint.AbstractSagaMessageWithOrigin<AbstractSagaMessage>,
@@ -73,62 +62,36 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
             throw new ErrStepNotFound();
         }
 
-        const unitOfWork = this.unitOfWorkFactory();
-
         if (sagaSession.isInForwardDirection()) {
-            await this.invocationResponseHandler(
-                sagaSession,
-                originChan,
-                message,
-                currentStep,
-                sagaDefinition,
-                unitOfWork,
-            );
+            await this.invocationResponseHandler(sagaSession, originChan, message, currentStep, sagaDefinition);
         } else if (sagaSession.isCompensating()) {
-            await this.compensationResponseHandler(
-                sagaSession,
-                originChan,
-                message,
-                currentStep,
-                sagaDefinition,
-                unitOfWork,
-            );
+            await this.compensationResponseHandler(sagaSession, originChan, message, currentStep, sagaDefinition);
         }
 
-        const sagaSaver = saga.getSagaRepository().saveTx(sagaSession);
-        unitOfWork.addToWork(sagaSaver);
-        await unitOfWork.Commit();
+        await saga.getSagaRepository().saveTx(sagaSession);
     }
 
+    @Transactional(Propagation.MANDATORY)
     private async invocationResponseHandler<I extends saga.SagaSession>(
         sagaSession: I,
         originChan: ChannelName,
         message: endpoint.AbstractSagaMessage,
         sagaStep: planning.Step<Tx>,
         sagaDefinition: planning.SagaDefinition<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
     ) {
         const invocationAction = sagaStep.invocationAction;
         sagaSession.unsetPendingState();
 
         if (this.isFailureInvocationResponse(originChan, invocationAction)) {
             if (sagaStep.mustComplete()) {
-                await this.retryInvocation(sagaSession, sagaStep, unitOfWork);
+                await this.retryInvocation(sagaSession, sagaStep);
                 return;
             }
-            await this.stepBackwardAndStartCompensation(sagaSession, sagaStep, sagaDefinition, unitOfWork);
+            await this.stepBackwardAndStartCompensation(sagaSession, sagaStep, sagaDefinition);
             return;
         }
 
-        if (sagaStep.hasReplyHandlers()) {
-            for (const handler of sagaStep.onReplies) {
-                // handler error handling needed
-                const result = await handler(message);
-                unitOfWork.addToWork(result);
-            }
-        }
-
-        await this.stepForwardAndInvoke(sagaSession, sagaStep, sagaDefinition, unitOfWork);
+        await this.stepForwardAndInvoke(sagaSession, sagaStep, sagaDefinition);
     }
 
     private isFailureInvocationResponse(
@@ -151,34 +114,27 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         throw new ErrChannelNotFound();
     }
 
-    private async retryInvocation<I extends saga.SagaSession>(
-        sagaSession: I,
-        currentStep: planning.Step<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
-    ) {
+    @Transactional(Propagation.MANDATORY)
+    private async retryInvocation<I extends saga.SagaSession>(sagaSession: I, currentStep: planning.Step<Tx>) {
         if (!currentStep.mustComplete()) {
             return;
         }
         sagaSession.setMustCompleteState();
-        await this.invokeStep(sagaSession, currentStep, unitOfWork);
+        await this.invokeStep(sagaSession, currentStep);
         return;
     }
 
-    private async invokeStep(
-        sagaSession: saga.SagaSession,
-        currentStep: planning.Step<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
-    ) {
-        const command = await currentStep.invocationAction.executeInvocation(sagaSession);
-        unitOfWork.addToWork(command);
+    @Transactional(Propagation.MANDATORY)
+    private async invokeStep(sagaSession: saga.SagaSession, currentStep: planning.Step<Tx>) {
+        await currentStep.invocationAction.executeInvocation(sagaSession);
         sagaSession.setPendingState();
     }
 
+    @Transactional(Propagation.MANDATORY)
     private async stepForwardAndInvoke<I extends saga.SagaSession>(
         sagaSession: I,
         currentStep: planning.Step<Tx>,
         sagaDefinition: planning.SagaDefinition<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
     ) {
         const currentStepName = currentStep.getStepName();
         const nextStep = sagaDefinition.getStepAfter(currentStepName);
@@ -191,30 +147,31 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         sagaSession.updateCurrentStep(nextStep.getStepName());
 
         if (nextStep.isInvocable()) {
-            await this.invokeStep(sagaSession, nextStep, unitOfWork);
+            await this.invokeStep(sagaSession, nextStep);
             return;
         }
 
         // Navigate until we find an invocable step while updating the current step.
-        await this.stepForwardAndInvoke(sagaSession, nextStep, sagaDefinition, unitOfWork);
+        await this.stepForwardAndInvoke(sagaSession, nextStep, sagaDefinition);
     }
 
+    @Transactional(Propagation.MANDATORY)
     private async compensationResponseHandler<I extends saga.SagaSession>(
         sagaSession: I,
         originChan: ChannelName,
         message: endpoint.AbstractSagaMessage,
         sagaStep: planning.Step<Tx>,
         sagaDefinition: planning.SagaDefinition<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
     ) {
         const compensationAction = sagaStep.compensationAction;
         sagaSession.unsetPendingState();
 
+        console.log(this.isFailureCompensationResponse(originChan, compensationAction));
         if (this.isFailureCompensationResponse(originChan, compensationAction)) {
-            await this.retryCompensation(sagaSession, sagaStep, unitOfWork);
+            await this.retryCompensation(sagaSession, sagaStep);
             return;
         }
-        await this.stepBackwardAndStartCompensation(sagaSession, sagaStep, sagaDefinition, unitOfWork);
+        await this.stepBackwardAndStartCompensation(sagaSession, sagaStep, sagaDefinition);
         return;
     }
 
@@ -238,21 +195,18 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         throw new ErrChannelNotFound();
     }
 
-    private async retryCompensation<I extends saga.SagaSession>(
-        sagaSession: I,
-        currentStep: planning.Step<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
-    ) {
+    @Transactional(Propagation.MANDATORY)
+    private async retryCompensation<I extends saga.SagaSession>(sagaSession: I, currentStep: planning.Step<Tx>) {
         sagaSession.setCompensationState();
-        await this.compensateStep(sagaSession, currentStep, unitOfWork);
+        await this.compensateStep(sagaSession, currentStep);
         return;
     }
 
+    @Transactional(Propagation.MANDATORY)
     private async stepBackwardAndStartCompensation<I extends saga.SagaSession>(
         sagaSession: I,
         currentStep: planning.Step<Tx>,
         sagaDefinition: planning.SagaDefinition<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
     ) {
         const currentStepName = currentStep.getStepName();
         const previousStep = sagaDefinition.getStepBefore(currentStepName);
@@ -267,27 +221,23 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         if (previousStep.isCompensatable()) {
             sagaSession.setCompensationState();
 
-            await this.compensateStep(sagaSession, previousStep, unitOfWork);
+            await this.compensateStep(sagaSession, previousStep);
             return;
         }
 
         // Navigate until we find a compensatable step while updating the current step.
-        await this.stepBackwardAndStartCompensation(sagaSession, previousStep, sagaDefinition, unitOfWork);
+        await this.stepBackwardAndStartCompensation(sagaSession, previousStep, sagaDefinition);
     }
 
-    private async compensateStep(
-        sagaSession: saga.SagaSession,
-        currentStep: planning.Step<Tx>,
-        unitOfWork: UnitOfWork<Tx>,
-    ) {
-        const command = await currentStep.compensationAction.executeCompensation(sagaSession);
-        unitOfWork.addToWork(command);
+    @Transactional(Propagation.MANDATORY)
+    private async compensateStep(sagaSession: saga.SagaSession, currentStep: planning.Step<Tx>) {
+        await currentStep.compensationAction.executeCompensation(sagaSession);
         sagaSession.setPendingState();
     }
 }
 
-export class BaseSagaOrchestrator<Tx extends TxContext> extends SagaOrchestrator<Tx> {
-    constructor(unitOfWorkFactory: UnitOfWorkFactory<Tx>) {
-        super(unitOfWorkFactory);
+export class BaseSagaOrchestrator<Tx extends TransactionContext> extends SagaOrchestrator<Tx> {
+    constructor() {
+        super();
     }
 }

@@ -1,5 +1,4 @@
 import * as point3Saga from '../Saga/index';
-import { TxContext } from '../UnitOfWork/main';
 
 import { ExampleSagaSessionArguments, ExampleSagaSession, InMemoryExampleSagaSaver } from './sagaSession';
 
@@ -13,7 +12,6 @@ import {
 
 import { ExampleSaga } from './saga';
 import { InMemoryExampleSagaRegistry } from './registry';
-import { InMemoryTxContext } from '../UnitOfWork/inMemory';
 import { InMemoryCommandRepository, InMemoryResponseRepository } from './repository';
 import { assert } from 'console';
 import { SagaRegistry } from '../Saga/API/SagaRegistry';
@@ -25,6 +23,8 @@ import {
 } from '../Saga/Errors/index';
 import { AlwaysFailingLocalEndpoint, AlwaysSuccessLocalEndpoint } from './endpoint';
 import { randomUUID } from 'crypto';
+import { TransactionContext, useTransactionManager } from '@tranjs/core';
+import { InMemoryTransactionContext, InMemoryTransactionManager } from '../Saga/Endpoint';
 
 var successResRepo: InMemoryResponseRepository<ExampleSuccessResponse>;
 var failureResRepo: InMemoryResponseRepository<ExampleFailureResponse>;
@@ -32,9 +32,9 @@ var commandRepo: InMemoryCommandRepository<ExampleRequestCommand>;
 
 var sagaRepo: InMemoryExampleSagaSaver;
 var registry: InMemoryExampleSagaRegistry;
-var builder: point3Saga.api.StepBuilder<InMemoryTxContext>;
+var builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>;
 
-function BuildSagaAndRegister<Tx extends TxContext>(
+function BuildSagaAndRegister<Tx extends TransactionContext>(
     registry: SagaRegistry<Tx>,
     builder: point3Saga.api.StepBuilder<Tx>,
     sagaSchema: (builder: point3Saga.api.StepBuilder<Tx>) => point3Saga.planning.SagaDefinition<Tx>,
@@ -48,6 +48,10 @@ function BuildSagaAndRegister<Tx extends TxContext>(
 }
 
 describe('SagaOrchestrator', () => {
+    beforeAll(() => {
+        useTransactionManager(new InMemoryTransactionManager());
+    });
+
     beforeEach(() => {
         // Reset all repositories before each test
         successResRepo = new InMemoryResponseRepository<ExampleSuccessResponse>();
@@ -58,11 +62,11 @@ describe('SagaOrchestrator', () => {
 
         // builder also holds information about the saga created in each test
         // so it should be reset as well
-        builder = new point3Saga.api.StepBuilder<InMemoryTxContext>();
+        builder = new point3Saga.api.StepBuilder<InMemoryTransactionContext>();
     });
 
     it('should be available to a registered saga', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder.build();
         };
 
@@ -72,7 +76,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should save a saga session when a saga is started', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder.build();
         };
 
@@ -88,7 +92,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should reject multiple sagas with the same name', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder.build();
         };
 
@@ -100,7 +104,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should set saga session state to complete when it has started a saga with an empty saga schema', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder.build();
         };
 
@@ -113,7 +117,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should set saga session state to pending when it has started a saga with a non-empty local action saga schema', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -129,7 +133,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should set saga session state to complete when it has consumed a success response from a local action', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -157,7 +161,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should produce either a success or failure response when a handler inside a local endpoint is invoked', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -175,7 +179,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should produce a failed response when a local endpoint is invoked and the handler inside the endpoint throws an error', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
@@ -191,7 +195,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should set saga session state to failed when it has consumed a failure response from a local action', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysFailingLocalEndpoint(successResRepo, failureResRepo))
@@ -220,7 +224,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should turn saga session state to completed after consuming a success response in pending state', async () => {
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('localStep1')
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -251,7 +255,7 @@ describe('SagaOrchestrator', () => {
         const STEP_1 = 'localStep1';
         const STEP_2 = 'localStep2';
 
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -318,7 +322,7 @@ describe('SagaOrchestrator', () => {
         const STEP_1 = 'localStep1';
         const STEP_2 = 'localStep2';
 
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -366,7 +370,7 @@ describe('SagaOrchestrator', () => {
         const STEP_1 = 'localStep1';
         const STEP_2 = 'localStep2';
 
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -429,7 +433,7 @@ describe('SagaOrchestrator', () => {
         const STEP_1 = 'localStep1';
         const STEP_2 = 'localStep2';
 
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step(STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -483,7 +487,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should not accept an unrelated message never has produced by the saga', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step('step1')
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))
@@ -510,7 +514,7 @@ describe('SagaOrchestrator', () => {
     });
 
     it('should raise dead saga session error when trying to relay a message to a saga that has already completed or failed', async () => {
-        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const emptySagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder.build();
         };
 
@@ -546,7 +550,7 @@ describe('SagaOrchestrator', () => {
             STEP_5 = 'localStep5',
         }
 
-        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTxContext>) => {
+        const localActionSagaSchema = (builder: point3Saga.api.StepBuilder<InMemoryTransactionContext>) => {
             return builder
                 .step(Steps.STEP_1)
                 .localInvoke(new AlwaysSuccessLocalEndpoint(successResRepo, failureResRepo))

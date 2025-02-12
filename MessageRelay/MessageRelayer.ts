@@ -1,9 +1,8 @@
-import { saga, endpoint, api } from '../Saga/index';
+import { endpoint } from '../Saga/index';
 import { Mutex } from 'async-mutex';
-import * as uow from '../UnitOfWork/main';
-import { TxContext } from '../UnitOfWork/main';
 import { BatchJob } from './BatchJob';
 import { ChannelFromMessageRelay, ChannelRegistryForMessageRelay } from './Channel';
+import { Propagation, Transactional, TransactionContext } from '@tranjs/core';
 
 class RemainingBatchSize {
     private remainingBatchSize: number;
@@ -34,19 +33,13 @@ class RemainingBatchSize {
     }
 }
 
-export class MessageRelayer<Tx extends TxContext> extends BatchJob {
+export class MessageRelayer<Tx extends TransactionContext> extends BatchJob {
     private BATCH_SIZE: number; // Dead letter batch size == Message batch size
     private _channelRegistry: ChannelRegistryForMessageRelay<Tx>;
-    private _unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>;
     private _messageRelayerMutex: Mutex;
 
-    constructor(
-        batchSize: number,
-        channelRegistry: ChannelRegistryForMessageRelay<Tx>,
-        unitOfWorkFactory: uow.UnitOfWorkFactory<Tx>,
-    ) {
+    constructor(batchSize: number, channelRegistry: ChannelRegistryForMessageRelay<Tx>) {
         super();
-        this._unitOfWorkFactory = unitOfWorkFactory;
         this._channelRegistry = channelRegistry;
         this._messageRelayerMutex = new Mutex();
         this.BATCH_SIZE = batchSize;
@@ -100,16 +93,12 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         }
     }
 
+    @Transactional(Propagation.REQUIRES_NEW)
     private async saveDeadLetters<M extends endpoint.AbstractSagaMessage>(
         channel: ChannelFromMessageRelay<M, Tx>,
         deadLetters: M[],
     ) {
-        const unitOfWork = this._unitOfWorkFactory();
-
-        const deadLetterSaver = channel.getRepository().saveDeadLetters(deadLetters);
-
-        unitOfWork.addToWork(deadLetterSaver);
-        await unitOfWork.Commit();
+        await channel.getRepository().saveDeadLetters(deadLetters);
     }
 
     private async deleteMessagesFromOutbox<M extends endpoint.AbstractSagaMessage>(
@@ -117,30 +106,27 @@ export class MessageRelayer<Tx extends TxContext> extends BatchJob {
         messages: M[],
     ) {
         for (const message of messages) {
-            const unitOfWork = this._unitOfWorkFactory();
-
-            const deleter = channel.getRepository().deleteMessage(message.getId());
-
-            unitOfWork.addToWork(deleter);
-            await unitOfWork.Commit();
+            await channel.getRepository().deleteMessage(message.getId());
         }
     }
 
+    @Transactional(Propagation.REQUIRES_NEW)
+    private async deleteSingleMessage<M extends endpoint.AbstractSagaMessage>(
+        channel: ChannelFromMessageRelay<M, Tx>,
+        message: M,
+    ) {
+        await channel.getRepository().deleteMessage(message.getId());
+    }
+
+    @Transactional(Propagation.REQUIRES_NEW)
     private async deleteDeadLetters<M extends endpoint.AbstractSagaMessage>(
         channel: ChannelFromMessageRelay<M, Tx>,
         deadLetters: M[],
     ) {
-        const unitOfWork = this._unitOfWorkFactory();
-
         // 이거 한꺼번에 지우는건 좀 위험할 수도 있음
         // 메모리에 올라가는 메시지가 많아지면 문제가 생길 수 있고,
         // 트랜잭션 시 한번에 업데이트하는 양이 많아지면 또한 문제가 생길 수 있음
-        const deadLettersDeleter = channel
-            .getRepository()
-            .deleteDeadLetters(deadLetters.map((message) => message.getId()));
-
-        unitOfWork.addToWork(deadLettersDeleter);
-        await unitOfWork.Commit();
+        await channel.getRepository().deleteDeadLetters(deadLetters.map((message) => message.getId()));
     }
 
     private async publishMessages(

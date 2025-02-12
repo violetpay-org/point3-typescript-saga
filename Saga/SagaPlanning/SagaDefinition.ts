@@ -1,7 +1,7 @@
-import { TxContext } from "../../UnitOfWork/main";
-import { Step } from "./Step";
+import { Step } from './Step';
+import { TransactionContext } from '@tranjs/core';
 
-export class SagaDefinition<Tx extends TxContext> {
+export class SagaDefinition<Tx extends TransactionContext> {
     steps: Step<Tx>[] = [];
 
     public constructor() {
@@ -13,7 +13,7 @@ export class SagaDefinition<Tx extends TxContext> {
     }
 
     public getStep(name: string): Step<Tx> {
-        return this.steps.find(step => step.getStepName() === name);
+        return this.steps.find((step) => step.getStepName() === name);
     }
 
     public getFirstStep(): Step<Tx> {
@@ -25,7 +25,7 @@ export class SagaDefinition<Tx extends TxContext> {
     }
 
     public getStepAfter(stepName: string): Step<Tx> {
-        const stepIndex = this.steps.findIndex(step => step.getStepName() === stepName);
+        const stepIndex = this.steps.findIndex((step) => step.getStepName() === stepName);
 
         if (stepIndex === -1) {
             return null;
@@ -39,7 +39,7 @@ export class SagaDefinition<Tx extends TxContext> {
     }
 
     public getStepBefore(stepName: string): Step<Tx> {
-        const stepIndex = this.steps.findIndex(step => step.getStepName() === stepName);
+        const stepIndex = this.steps.findIndex((step) => step.getStepName() === stepName);
 
         if (stepIndex === -1) {
             return null;
@@ -53,7 +53,7 @@ export class SagaDefinition<Tx extends TxContext> {
     }
 
     public checkNoDuplicateStepNames(): boolean {
-        const stepNames = this.steps.map(step => step.getStepName());
+        const stepNames = this.steps.map((step) => step.getStepName());
         return stepNames.length === new Set(stepNames).size;
     }
 }

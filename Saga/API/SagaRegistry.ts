@@ -1,4 +1,3 @@
-import { TxContext } from '../../UnitOfWork/main';
 import { SagaOrchestrator } from './SagaOrchestrator';
 import {
     ErrChannelNotFound,
@@ -19,9 +18,10 @@ import { AbstractSagaMessage } from '../Endpoint';
 
 import { Constructor } from '../../common/syntex';
 import { MessageIdempotenceProvider } from './MessageIdempotence';
+import { TransactionContext } from '@tranjs/core';
 
 export abstract class AbstractSaga<
-    Tx extends TxContext,
+    Tx extends TransactionContext,
     A extends saga.SagaSessionArguments,
     I extends saga.SagaSession,
 > {
@@ -44,7 +44,7 @@ export abstract class AbstractSaga<
     }
 }
 
-export class SagaRegistry<Tx extends TxContext> {
+export class SagaRegistry<Tx extends TransactionContext> {
     protected sagas: Array<AbstractSaga<Tx, saga.SagaSessionArguments, saga.SagaSession>> = [];
     protected orchestrator: SagaOrchestrator<Tx>;
     private messageIdempotence: MessageIdempotenceProvider;
@@ -106,11 +106,11 @@ export class SagaRegistry<Tx extends TxContext> {
         }
     }
 
-    public async startSaga<Tx extends TxContext, A extends saga.SagaSessionArguments, I extends saga.SagaSession>(
-        sagaName: string,
-        sessionArg: A,
-        sagaClass: Constructor<AbstractSaga<Tx, A, I>>,
-    ) {
+    public async startSaga<
+        Tx extends TransactionContext,
+        A extends saga.SagaSessionArguments,
+        I extends saga.SagaSession,
+    >(sagaName: string, sessionArg: A, sagaClass: Constructor<AbstractSaga<Tx, A, I>>) {
         await this.registryMutex.acquire();
         const saga = this.sagas.find((saga) => saga.getName() === sagaName);
         this.registryMutex.release();
@@ -119,13 +119,13 @@ export class SagaRegistry<Tx extends TxContext> {
             throw new ErrSagaNotFound();
         }
 
-        await this.orchestrator.startSaga<A, I>(sessionArg, saga as AbstractSaga<TxContext, A, I>);
+        await this.orchestrator.startSaga<A, I>(sessionArg, saga as AbstractSaga<TransactionContext, A, I>);
     }
 }
 
 export abstract class ChannelToSagaRegistry<
     M extends endpoint.AbstractSagaMessage,
-    Tx extends TxContext,
+    Tx extends TransactionContext,
 > extends endpoint.AbstractChannel<M> {
     private _sagaRegistry: SagaRegistry<Tx>;
 

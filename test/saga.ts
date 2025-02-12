@@ -1,29 +1,26 @@
-import * as point3Saga from "../Saga/index";
-import { TxContext } from "../UnitOfWork/main";
+import * as point3Saga from '../Saga/index';
 
-import {
-    ExampleSagaSessionArguments,
-    ExampleSagaSession,
-} from "./sagaSession";
+import { ExampleSagaSessionArguments, ExampleSagaSession } from './sagaSession';
+import { TransactionContext } from '@tranjs/core';
 
-export class ExampleSaga<T extends TxContext> extends point3Saga.api.AbstractSaga<
+export class ExampleSaga<T extends TransactionContext> extends point3Saga.api.AbstractSaga<
     T,
     ExampleSagaSessionArguments,
     ExampleSagaSession
 > {
-    protected static sagaName: string = "ExampleSaga";
+    protected static sagaName: string = 'ExampleSaga';
 
     private sagaDefinition: point3Saga.planning.SagaDefinition<T>;
     private sagaSessionRepository: point3Saga.saga.SagaSessionRepository<T, ExampleSagaSession>;
-    
+
     constructor(
         builder: point3Saga.api.StepBuilder<T>,
-        schema: (builder: point3Saga.api.StepBuilder<T>) => point3Saga.planning.SagaDefinition<T>,    
+        schema: (builder: point3Saga.api.StepBuilder<T>) => point3Saga.planning.SagaDefinition<T>,
         sagaSessionRepository: point3Saga.saga.SagaSessionRepository<T, ExampleSagaSession>,
     ) {
         super();
         this.sagaDefinition = schema(builder);
-        console.log(this.sagaDefinition)
+        console.log(this.sagaDefinition);
         this.sagaSessionRepository = sagaSessionRepository;
     }
 
@@ -49,4 +46,3 @@ export class ExampleSaga<T extends TxContext> extends point3Saga.api.AbstractSag
         return Promise.resolve(sagaSession);
     }
 }
-
