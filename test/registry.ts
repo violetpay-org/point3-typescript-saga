@@ -1,5 +1,5 @@
 import * as point3Saga from '../Saga/index';
-import { InMemoryTxContext, InMemoryUnitOfWork } from '../UnitOfWork/inMemory';
+import { InMemoryTxContext, InMemoryUnitOfWork } from '../UnitOfWork/memory';
 import { InMemoryMessageIdempotenceProvider } from './idempotence';
 
 export class InMemoryExampleSagaRegistry extends point3Saga.api.SagaRegistry<InMemoryTxContext> {

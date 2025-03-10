@@ -1,4 +1,4 @@
-import { TxContext, UnitOfWork, UnitOfWorkFactory } from "./main";
+import { TxContext, UnitOfWork, UnitOfWorkFactory } from "../main";
 
 export class InMemoryTxContext implements TxContext {
     constructor() {}
@@ -26,6 +26,6 @@ export class InMemoryUnitOfWork extends UnitOfWork<InMemoryTxContext> {
     }
 }
 
-export const InMemoryUnitOfWorkFactory = () => {
+export const InMemoryUnitOfWorkFactory: UnitOfWorkFactory<InMemoryTxContext> = () => {
     return new InMemoryUnitOfWork();
 }

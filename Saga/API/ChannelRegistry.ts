@@ -1,4 +1,3 @@
-import { Mutex } from "async-mutex";
 import * as endpoint from "../Endpoint/index";
 
 export class ChannelRegistry {

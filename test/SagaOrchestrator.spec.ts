@@ -13,7 +13,7 @@ import {
 
 import { ExampleSaga } from './saga';
 import { InMemoryExampleSagaRegistry } from './registry';
-import { InMemoryTxContext } from '../UnitOfWork/inMemory';
+import { InMemoryTxContext } from '../UnitOfWork/memory';
 import { InMemoryCommandRepository, InMemoryResponseRepository } from './repository';
 import { assert } from 'console';
 import { SagaRegistry } from '../Saga/API/SagaRegistry';

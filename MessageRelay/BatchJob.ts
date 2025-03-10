@@ -1,4 +1,3 @@
-import { assert } from 'console';
 import corn from 'node-cron';
 
 export abstract class BatchJob {

@@ -1,5 +1,5 @@
 import { ExampleSagaSession } from 'test/sagaSession';
-import { p3saga, uow } from '../../index';
+import { p3saga } from '../../index';
 
 export class InMemoryCommand extends p3saga.endpoint.Command<
     ExampleSagaSession,

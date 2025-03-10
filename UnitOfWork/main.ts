@@ -11,7 +11,6 @@ export function BaseCombineExecutable<T extends TxContext>(...args: Executable<T
     }
 }
 
-
 export type UnitOfWorkFactory<T extends TxContext> = () => UnitOfWork<T>;
 
 export abstract class UnitOfWork<T extends TxContext> {
@@ -60,5 +59,15 @@ export abstract class UnitOfWork<T extends TxContext> {
         } finally {
             await this._rollbackCommand();
         }
+    }
+
+    /**
+     * Rolls back the transaction.
+     * This method should be implemented by the concrete class.
+     * Current version has implemented a void return to support backwards compatibility.
+     * Future versions will throw an error if this method is not implemented.
+     */
+    public Rollback(): Promise<void> {
+        return;
     }
 }

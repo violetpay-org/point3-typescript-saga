@@ -1,4 +1,4 @@
-import { p3saga, uow, uowMemory } from '../../index';
+import { p3saga, uowMemory } from '../../index';
 import { InMemoryCommand } from './messages';
 import { ExampleSagaSession } from './session';
 import { ChannelFromMessageRelay } from 'MessageRelay/Channel';   

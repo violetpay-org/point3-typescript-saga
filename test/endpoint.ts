@@ -1,5 +1,5 @@
 import * as point3Saga from "../Saga/index";
-import { Executable, TxContext } from "../UnitOfWork/main";
+import { Executable, TxContext } from "../UnitOfWork";
 import { ExampleFailureResponseChannel, ExampleLocalFailureResponseChannel, ExampleLocalSuccessResponseChannel, ExampleRequestChannel, ExampleSuccessResponseChannel } from "./channel";
 import {
     ExampleRequestCommand,
