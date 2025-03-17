@@ -10,7 +10,7 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
     return function (target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
         let originalMethod = descriptor.value;
         descriptor.value = async function (...methodArgs: any[]) {
-            let unitOfWork: UnitOfWork<any> | undefined = (THREAD_LOCAL.getStore()) as UnitOfWork<any> | undefined;
+            let unitOfWork = (THREAD_LOCAL as AsyncLocalStorage<UnitOfWork<any>>).getStore();
             if (unitOfWork) return originalMethod.apply(this, methodArgs);
 
             unitOfWork = new unitOfWorkType(...args);
