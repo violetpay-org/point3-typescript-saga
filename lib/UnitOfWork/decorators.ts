@@ -4,33 +4,33 @@ import { AsyncLocalStorage } from "async_hooks";
 
 export const THREAD_LOCAL = new AsyncLocalStorage();
 
-export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>(
-    unitOfWorkType: U,
-    ...args: ConstructorParameters<U>
-) {
-    return function (target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
-        let originalMethod = descriptor.value;
-        descriptor.value = async function (...methodArgs: any[]) {
-            let unitOfWork = (THREAD_LOCAL as AsyncLocalStorage<UnitOfWork<any>>).getStore();
-            // if Transactional decorator has been used above, automatically joins the transaction above.
-            if (unitOfWork) return originalMethod.apply(this, methodArgs);
+// export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>(
+//     unitOfWorkType: U,
+//     ...args: ConstructorParameters<U>
+// ) {
+//     return function (target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
+//         let originalMethod = descriptor.value;
+//         descriptor.value = async function (...methodArgs: any[]) {
+//             let unitOfWork = (THREAD_LOCAL as AsyncLocalStorage<UnitOfWork<any>>).getStore();
+//             // if Transactional decorator has been used above, automatically joins the transaction above.
+//             if (unitOfWork) return originalMethod.apply(this, methodArgs);
 
-            unitOfWork = new unitOfWorkType(...args);
-            return THREAD_LOCAL.run(unitOfWork, async () => {
-                let result: any;
-                try {
-                    result = await originalMethod.apply(this, methodArgs);
-                    await unitOfWork.Commit();
-                    return result;
-                } catch (e) {
-                    await unitOfWork.Rollback();
-                    throw e;
-                }
-            });
-        };
-        return descriptor;
-    }
-}
+//             unitOfWork = new unitOfWorkType(...args);
+//             return THREAD_LOCAL.run(unitOfWork, async () => {
+//                 let result: any;
+//                 try {
+//                     result = await originalMethod.apply(this, methodArgs);
+//                     await unitOfWork.Commit();
+//                     return result;
+//                 } catch (e) {
+//                     await unitOfWork.Rollback();
+//                     throw e;
+//                 }
+//             });
+//         };
+//         return descriptor;
+//     }
+// }
 
 /**
  * NestableTransactional 데코레이터는 중첩된 트랜잭션 관리를 가능하게 합니다.
@@ -57,7 +57,7 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
  * @param args 작업 단위의 생성자 매개변수
  * @returns 트랜잭션을 관리하는 메서드 데코레이터
  */
-export function NestableTransactional<U extends new (...args: any[]) => UnitOfWork<any>>(
+export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>(
     unitOfWorkType: U,
     ...args: ConstructorParameters<U>
 ) {
