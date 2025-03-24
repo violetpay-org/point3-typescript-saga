@@ -1,8 +1,10 @@
 import { Pool } from "mysql2/promise";
-import { Transactional } from "../decorators";
+import { THREAD_LOCAL, Transactional } from "../decorators";
 import { MySQLUnitOfWork } from "./unitOfWork";
 import { Logger } from "@nestjs/common";
 import { createUnitOfWorkPool } from "./pool";
+import { resolveMx } from "dns";
+import { constrainedMemory } from "process";
 
 const MYSQL_USER = "root";
 const MYSQL_HOST = "0.0.0.0";
@@ -29,7 +31,7 @@ describe("createTransactionalPool 과 MySQLUnitOfWork 를 활용한 @Transaction
             user: MYSQL_USER,
             password: MYSQL_PASSWORD,
             database: MYSQL_DATABASE,
-        
+
             waitForConnections: true,
             connectionLimit: 20,
             queueLimit: 0,
@@ -39,7 +41,7 @@ describe("createTransactionalPool 과 MySQLUnitOfWork 를 활용한 @Transaction
     });
 
     afterAll(async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // await new Promise((resolve, reject) => setTimeout(() => resolve, 100));
         await orchestrator.dropAll();
         await orchestrator.destroy();
     });
@@ -48,13 +50,13 @@ describe("createTransactionalPool 과 MySQLUnitOfWork 를 활용한 @Transaction
         await orchestrator.saveOneRecordForEach();
         await expect(orchestrator.countAll()).resolves.toBe(5);
     });
-    
+
     it(`0.5 의 확률으로 단일 저장소에서 저장 실패 - 저장 실패하면 모두 저장되면 안됨`, async () => {
         const FAIL_RATE = 0.5;
         try {
             await orchestrator.saveOneRecordForEach(FAIL_RATE);
-        } catch (e) {}
-        
+        } catch (e) { }
+
         await expect(orchestrator.countAll()).resolves.toBe(5);
     });
 });
@@ -142,7 +144,7 @@ class Orchestrator {
     }
 
     async destroy(): Promise<void> {
-        await this.pool.end()
+        await this.pool.end();
     }
 }
 
@@ -210,26 +212,26 @@ class Repository<O extends PersistanceObject> {
     }
 
     async drop(pool: Pool): Promise<void> {
-        await pool.execute(`DROP TABLE IF EXISTS ${this.TableName}`);
+        await pool.execute(`drop table if exists ${this.TableName}`);
     }
 
     async append(
         pool: Pool,
         ...values: [
-            ...ReturnType<O["ValueArgGuide"]>, 
+            ...ReturnType<O["ValueArgGuide"]>,
             failRate?: number
         ]
     ): Promise<void> {
         const conn = await pool.getConnection();
-        
+
         const requiredArgCount = this.object.ValueArgGuide().length;
         let failRate = 0;
         let args = values.slice(0, requiredArgCount);
-        
+
         if (values.length > requiredArgCount && typeof values[values.length - 1] === 'number') {
             failRate = values.pop() as number;
         }
-        
+
         try {
             await conn.beginTransaction();
 
@@ -237,7 +239,7 @@ class Repository<O extends PersistanceObject> {
                 this.object.InsertSQL,
                 args
             );
-            
+
             /**
              * ```
              * 연속 균등 확률 변수 X를 정의:
@@ -259,7 +261,7 @@ class Repository<O extends PersistanceObject> {
             if (failRate > 0 && Math.random() < failRate) {
                 throw new Error("Simulated failure for testing");
             }
-            
+
             await conn.commit();
         } catch (e) {
             await conn.rollback();

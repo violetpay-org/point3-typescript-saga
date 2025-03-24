@@ -4,33 +4,33 @@ import { AsyncLocalStorage } from "async_hooks";
 
 export const THREAD_LOCAL = new AsyncLocalStorage();
 
-// export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>(
-//     unitOfWorkType: U,
-//     ...args: ConstructorParameters<U>
-// ) {
-//     return function (target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
-//         let originalMethod = descriptor.value;
-//         descriptor.value = async function (...methodArgs: any[]) {
-//             let unitOfWork = (THREAD_LOCAL as AsyncLocalStorage<UnitOfWork<any>>).getStore();
-//             // if Transactional decorator has been used above, automatically joins the transaction above.
-//             if (unitOfWork) return originalMethod.apply(this, methodArgs);
+export function ShallowTransactional<U extends new (...args: any[]) => UnitOfWork<any>>(
+    unitOfWorkType: U,
+    ...args: ConstructorParameters<U>
+) {
+    return function (target: any, methodName: string, descriptor: PropertyDescriptor): PropertyDescriptor {
+        let originalMethod = descriptor.value;
+        descriptor.value = async function (...methodArgs: any[]) {
+            let unitOfWork = (THREAD_LOCAL as AsyncLocalStorage<UnitOfWork<any>>).getStore();
+            // if Transactional decorator has been used above, automatically joins the transaction above.
+            if (unitOfWork) return originalMethod.apply(this, methodArgs);
 
-//             unitOfWork = new unitOfWorkType(...args);
-//             return THREAD_LOCAL.run(unitOfWork, async () => {
-//                 let result: any;
-//                 try {
-//                     result = await originalMethod.apply(this, methodArgs);
-//                     await unitOfWork.Commit();
-//                     return result;
-//                 } catch (e) {
-//                     await unitOfWork.Rollback();
-//                     throw e;
-//                 }
-//             });
-//         };
-//         return descriptor;
-//     }
-// }
+            unitOfWork = new unitOfWorkType(...args);
+            return THREAD_LOCAL.run(unitOfWork, async () => {
+                let result: any;
+                try {
+                    result = await originalMethod.apply(this, methodArgs);
+                    await unitOfWork.Commit();
+                    return result;
+                } catch (e) {
+                    await unitOfWork.Rollback();
+                    throw e;
+                }
+            });
+        };
+        return descriptor;
+    }
+}
 
 /**
  * NestableTransactional 데코레이터는 중첩된 트랜잭션 관리를 가능하게 합니다.
@@ -45,7 +45,7 @@ export const THREAD_LOCAL = new AsyncLocalStorage();
  * │   └── NestableTransactional_5
  * └── NestableTransactional_3
  *     ├── NestableTransactional_6
- *     └── NestableTransactional_7
+ *     └── NestableTransactional_7 
  * 
  * 트랜잭션은 다음 순서로 처리됩니다: 4, 5, 2, 6, 7, 3, 1
  * 
@@ -86,6 +86,9 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
                 } catch (e) {
                     await groupOfWorks.Rollback();
                     throw e;
+                } finally {
+                    if (groupOfWorks.DeepestWork[0]) return;
+                    THREAD_LOCAL.disable(); // cleanup for jobs all done
                 }
             });
         };
@@ -94,7 +97,7 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
 }
 
 type WorkId = string; // ideal case would be scope name, which is represented by method name...?
-class GroupOfWorks {
+export class GroupOfWorks {
     private _FILOWorkIdQueue: WorkId[] = [];
     private _unitOfWorks = new Map<WorkId, UnitOfWork<any>>();
 
@@ -115,9 +118,21 @@ class GroupOfWorks {
         );
     }
 
-    public join(workId: WorkId, uow: UnitOfWork<any>) {
+    public join(workId: WorkId, uow: UnitOfWork<any>): void {
         this._FILOWorkIdQueue.push(workId);
         this._unitOfWorks.set(workId, uow);
+    }
+
+    /**
+     * The deepest work (most urgent work to be done in current scope or function call)
+     */
+    public get DeepestWork(): [workId: WorkId | undefined, unitOfWork: UnitOfWork<any> | undefined] {
+        if (this.isWorkEmpty) return [undefined, undefined];
+
+        return [
+            this._FILOWorkIdQueue[this._FILOWorkIdQueue.length - 1],
+            this._unitOfWorks.get(this._FILOWorkIdQueue[this._FILOWorkIdQueue.length - 1])
+        ];
     }
 
     private get isWorkEmpty(): boolean {
@@ -138,12 +153,13 @@ class GroupOfWorks {
     public async Commit(): Promise<void> {
         if (this.isWorkEmpty) return;
 
-        const [workId, work] = this.popWork();
-        try { 
-            await work.Commit(); 
-        } catch (e) { 
-            await work.Rollback(); 
-            throw new Point3TransactionalError(e, workId); 
+        const [workId, work] = this.DeepestWork;
+        try {
+            await work.Commit();
+            this.popWork();
+        } catch (e) {
+            await work.Rollback();
+            throw new Point3TransactionalError(e, workId);
         };
     };
 
@@ -154,7 +170,7 @@ class GroupOfWorks {
             const [_, work] = this.popWork();
             try {
                 await work.Rollback();
-            } catch (e) {}
+            } catch (e) { }
         }
     };
 }

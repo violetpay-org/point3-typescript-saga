@@ -1,7 +1,7 @@
 import { PoolConnection, Pool, ConnectionOptions, PreparedStatementInfo, QueryOptions, createPool, PoolOptions } from "mysql2/promise";
 import { UnitOfWork } from "../main";
 import { MySQLUnitOfWork } from "./unitOfWork";
-import { THREAD_LOCAL } from "../decorators";
+import { GroupOfWorks, THREAD_LOCAL } from "../decorators";
 
 /**
  * Creates and returns a customized MySQL Pool for transaction management.
@@ -102,7 +102,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     pool.releaseConnection = releaseConnection.bind(pool);
 
     async function connect(): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalConnect.call(pool);
         }
 
@@ -118,7 +118,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     };
 
     async function ping(): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalPing.call(pool);
         }
 
@@ -134,7 +134,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function beginTransaction(): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalBeginTransaction.call(pool);
         }
 
@@ -148,7 +148,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function commit(): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalCommit.call(pool);
         }
         
@@ -156,7 +156,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function rollback(): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalRollback.call(pool);
         }
 
@@ -164,7 +164,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function changeUser(options: ConnectionOptions): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalChangeUser.call(pool, options);
         }
 
@@ -180,7 +180,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function prepare(options: string | QueryOptions): Promise<PreparedStatementInfo> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalPrepare.call(pool, options);
         }
 
@@ -196,7 +196,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function unprepare(sql: string | QueryOptions): void {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalUnprepare.call(pool, sql);
         }
 
@@ -210,7 +210,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function end(options?: any): Promise<void> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalEnd.call(pool);
         }
 
@@ -226,7 +226,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function destroy(): void {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalDestroy.call(pool);
         }
 
@@ -240,7 +240,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function pause(): void {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalPause.call(pool);
         }
 
@@ -254,7 +254,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function resume(): void {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalResume.call(pool);
         }
 
@@ -268,7 +268,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function escape(value: any): string {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalEscape.call(pool, value);
         }
 
@@ -282,7 +282,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function escapeId(value: string | string[]): string {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalEscapeId.call(pool, value);
         }
 
@@ -300,7 +300,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     function format(sql: string, values?: any | any[] | { [param: string]: any }): string {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalFormat.call(pool, sql, values);
         }
 
@@ -314,7 +314,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     }
 
     async function getConnection(): Promise<PoolConnection> {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return await originalGetConnection.call(pool);
         }
     
@@ -330,7 +330,7 @@ export function createUnitOfWorkPool(configOrConnectionUri: string | PoolOptions
     };
 
     function releaseConnection(connection: PoolConnection): void {
-        if (!isUnitOfWorkInThreadLocal<MySQLUnitOfWork>()) {
+        if (!isUnitOfWorkInThreadLocal()) {
             return originalReleaseConnection.call(pool, connection);
         }
 
@@ -361,30 +361,38 @@ function CustomConnection(conn: PoolConnection): PoolConnection {
     
     async function commit(): Promise<void> {
         const unitOfWork = getUnitOfWorkFromThreadLocal<MySQLUnitOfWork>();
-        if (!unitOfWork.CommitTime) return;
-        
+        if (!unitOfWork) {
+            console.trace('Current stack trace for DeepestWork access');    
+            return
+        }
+        if (!unitOfWork || !unitOfWork.CommitTime) {
+            // console.trace('Current stack trace for DeepestWork access');
+            return;
+        };
+
         return await originalCommit.call(conn);
     }
     
     async function rollback(): Promise<void> { 
         const unitOfWork = getUnitOfWorkFromThreadLocal<MySQLUnitOfWork>();
-        if (!unitOfWork.CommitTime) return;
-        
+        if (!unitOfWork || !unitOfWork.CommitTime) return;
+
         return await originalRollback.call(conn);
     }
 
     function release(): void {
         const unitOfWork = getUnitOfWorkFromThreadLocal<MySQLUnitOfWork>();
-        if (!unitOfWork.CommitTime) return;
-        
+        if (!unitOfWork || !unitOfWork.CommitTime) return;
+
         return originalRelease.call(conn);
     }
 }
 
-function isUnitOfWorkInThreadLocal<U extends UnitOfWork<any>>(): boolean {
-    return (THREAD_LOCAL.getStore() as U && THREAD_LOCAL.getStore() instanceof UnitOfWork)
+function isUnitOfWorkInThreadLocal(): boolean {
+    return (THREAD_LOCAL.getStore() instanceof GroupOfWorks || THREAD_LOCAL.getStore() instanceof UnitOfWork)
 }
 
-function getUnitOfWorkFromThreadLocal<U extends UnitOfWork<any>>(): U {
-    return THREAD_LOCAL.getStore() as U
+function getUnitOfWorkFromThreadLocal<U extends UnitOfWork<any>>(): U | undefined {
+    const [_, work]= (THREAD_LOCAL.getStore() as GroupOfWorks).DeepestWork;
+    return work as U | undefined
 }
