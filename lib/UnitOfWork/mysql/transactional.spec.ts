@@ -1,10 +1,7 @@
 import { Pool } from "mysql2/promise";
-import { THREAD_LOCAL, Transactional } from "../decorators";
+import { Transactional } from "../decorators";
 import { MySQLUnitOfWork } from "./unitOfWork";
-import { Logger } from "@nestjs/common";
 import { createUnitOfWorkPool } from "./pool";
-import { resolveMx } from "dns";
-import { constrainedMemory } from "process";
 
 const MYSQL_USER = "root";
 const MYSQL_HOST = "0.0.0.0";
@@ -40,12 +37,6 @@ describe("createTransactionalPool 과 MySQLUnitOfWork 를 활용한 @Transaction
         orchestrator = orchestratorFactory(pool);
     });
 
-    afterAll(async () => {
-        // await new Promise((resolve, reject) => setTimeout(() => resolve, 100));
-        await orchestrator.dropAll();
-        await orchestrator.destroy();
-    });
-
     it("모두 다 저장 성공", async () => {
         await orchestrator.saveOneRecordForEach();
         await expect(orchestrator.countAll()).resolves.toBe(5);
@@ -57,17 +48,162 @@ describe("createTransactionalPool 과 MySQLUnitOfWork 를 활용한 @Transaction
             await orchestrator.saveOneRecordForEach(FAIL_RATE);
         } catch (e) { }
 
-        await expect(orchestrator.countAll()).resolves.toBe(5);
+        const count = await orchestrator.countAll();
+        expect(count).toBe(5);
+    });
+
+    it("clean up", async () => {
+        try {
+            await orchestrator.dropAll();
+            await orchestrator.destroy();
+        } catch (e) {
+            console.log(e)
+        }
     });
 });
 
+describe("중첩된 @Transactional 환경에서의 동작", () => {
+    let orchestrator1: Orchestrator;
+    let orchestrator2: Orchestrator;
+    let mainOrchestrator: MultiDBOrchestrator;
+
+    const DB_1 = "test_db_1";
+    const DB_2 = "test_db_2";
+    const MAIN_DB = "test_main_db";
+
+    beforeAll(async () => {
+        const mainOrchestratorFactory = await MultiDBOrchestrator.setUp(
+            MAIN_DB,
+            new Set(["sentinel_first", "sentinel_second"])
+        );
+        const orchestratorFactory1 = await Orchestrator.setUp(
+            DB_1,
+            new Set(["first", "second"])
+        );
+        const orchestratorFactory2 = await Orchestrator.setUp(
+            DB_2,
+            new Set(["third", "forth"])
+        );
+
+        
+        let mainPool = createUnitOfWorkPool({
+            host: MYSQL_HOST,
+            user: MYSQL_USER,
+            password: MYSQL_PASSWORD,
+            database: MAIN_DB,
+
+            waitForConnections: true,
+            connectionLimit: 20,
+            queueLimit: 0,
+
+            connectTimeout: 60000,
+
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
+        });
+
+        let pool1 = createUnitOfWorkPool({
+            host: MYSQL_HOST,
+            user: MYSQL_USER,
+            password: MYSQL_PASSWORD,
+            database: DB_1,
+
+            waitForConnections: true,
+            connectionLimit: 20,
+            queueLimit: 0,
+
+            connectTimeout: 60000,
+
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
+        });
+
+        let pool2 = createUnitOfWorkPool({
+            host: MYSQL_HOST,
+            user: MYSQL_USER,
+            password: MYSQL_PASSWORD,
+            database: DB_2,
+
+            waitForConnections: true,
+            connectionLimit: 20,
+            queueLimit: 0,
+
+            connectTimeout: 60000,
+
+            enableKeepAlive: true,
+            keepAliveInitialDelay: 10000,
+        });
+
+        orchestrator1 = orchestratorFactory1(pool1);
+        orchestrator2 = orchestratorFactory2(pool2);
+        mainOrchestrator = mainOrchestratorFactory(mainPool, orchestrator1, orchestrator2);
+    });
+
+    it("중첩된 operation 모두 성공 시 모두 저장 완료", async () => {
+        await mainOrchestrator.saveMultipleRecords();
+
+        const [mainCount, count1, count2] = await mainOrchestrator.verifyResults();
+        expect(mainCount).toBe(2);
+        expect(count1).toBe(2);
+        expect(count2).toBe(2);
+    }, 1000000);
+
+    it("clean up", async () => {
+        try {
+            await orchestrator1.dropAll();
+            // await orchestrator1.destroy();
+
+            await orchestrator2.dropAll();
+            // await orchestrator2.destroy();
+
+            await mainOrchestrator.dropAll();
+            // await mainOrchestrator.destroy();
+        } catch (e) {
+            console.log(e);
+        }
+    });
+
+    it("중첩된 @Transaction 중 실패한 작업 뒤에 일어나는 모든 작업은 Rollback 되어야 함", async () => {
+        const ORCH_1_FAIL_RATE = 0;
+        const MAIN_FAIL_RATE = 1;
+        const ORCH_2_FAIL_RATE = 0;
+        
+        await expect(mainOrchestrator.saveMultipleRecords(
+            MAIN_FAIL_RATE,
+            ORCH_1_FAIL_RATE,
+            ORCH_2_FAIL_RATE
+        )).rejects.toThrow(Error);
+
+        const [mainCount, orch1Count, orch2Count] = await mainOrchestrator.verifyResults();
+        expect(orch1Count).toBe(2);
+        expect(mainCount).toBe(0);
+        expect(orch2Count).toBe(0);
+    });
+
+    it("clean up", async () => {
+        try {
+            await orchestrator1.dropAll();
+            await orchestrator1.destroy();
+
+            await orchestrator2.dropAll();
+            await orchestrator2.destroy();
+
+            await mainOrchestrator.dropAll();
+            await mainOrchestrator.destroy();
+        } catch (e) {
+            console.log(e);
+        }
+    });
+});
+
+
 class Orchestrator {
     constructor(
-        private readonly pool: Pool,
-        private readonly repositories: Record<string, Repository<PersistanceObject>>
+        protected readonly pool: Pool,
+        protected readonly repositories: Record<string, Repository<PersistanceObject>>
     ) { };
 
-    private static async makeDatabase(name: string): Promise<void> {
+    protected static async makeDatabase(name: string): Promise<void> {
         const { spawn } = require('child_process');
         return new Promise((resolve, reject) => {
             const mysql = spawn(
@@ -89,7 +225,6 @@ class Orchestrator {
 
             mysql.stderr.on("data", (data) => {
                 const stringified: string = Buffer.from(data).toString();
-                console.log(stringified)
                 if (stringified.includes("[Warning]")) return;
                 reject(new Error("ERR: during creating database"));
             });
@@ -103,7 +238,7 @@ class Orchestrator {
     static async setUp(
         databaseName: string,
         tableNames: Set<string>
-    ): Promise<(pool: Pool) => Orchestrator> {
+    ): Promise<(pool: Pool, ...extraArgs: any[]) => Orchestrator> {
         await Orchestrator.makeDatabase(databaseName);
 
         let repos: Record<string, Repository<PersistanceObject>> = {};
@@ -135,12 +270,16 @@ class Orchestrator {
         return count;
     }
 
+    async cleanUp(): Promise<void> {
+
+    }
+
     async dropAll(): Promise<void> {
         for (const repo of Object.values(this.repositories)) {
-            await repo.drop(this.pool);
+            repo.drop(this.pool);
         }
 
-        await this.pool.execute(`DROP DATABASE IF EXISTS ${MYSQL_DATABASE}`);
+        await new Promise((resolve, reject) => setTimeout(resolve, 1500));
     }
 
     async destroy(): Promise<void> {
@@ -212,7 +351,15 @@ class Repository<O extends PersistanceObject> {
     }
 
     async drop(pool: Pool): Promise<void> {
-        await pool.execute(`drop table if exists ${this.TableName}`);
+        const conn = await pool.getConnection();
+        try {
+            await conn.execute(`delete from ${this.TableName}`)
+        } catch (e) {
+            console.error('Error:', e);
+            throw e;
+        } finally {
+            conn.release();
+        }
     }
 
     async append(
@@ -257,7 +404,7 @@ class Repository<O extends PersistanceObject> {
              * 
              * 여기서 1{·}는 지시 함수(indicator function)임.
              * ```
-             */
+            */
             if (failRate > 0 && Math.random() < failRate) {
                 throw new Error("Simulated failure for testing");
             }
@@ -293,7 +440,7 @@ abstract class PersistanceObject {
      * const repo = new Repository(new CustomObject());
      * await repo.append(pool, "테스트 값"); // value 컬럼에 "테스트 값" 삽입
      * ```
-     */
+    */
     ValueArgGuide(): [value: string] {
         return ["string"];
     }
@@ -310,5 +457,58 @@ abstract class PersistanceObject {
 
     get InsertSQL(): string {
         return `INSERT INTO ${this.TableName} (value) VALUES (?)`
+    }
+}
+class MultiDBOrchestrator extends Orchestrator {
+    constructor(
+        pool: Pool,
+        repositories: Record<string, Repository<PersistanceObject>>,
+        private readonly orchestrator1: Orchestrator,
+        private readonly orchestrator2: Orchestrator
+    ) {
+        super(pool, repositories);
+    }
+
+    static async setUp(
+        databaseName: string,
+        tableNames: Set<string>
+    ): Promise<(
+        pool: Pool,
+        orchestrator1: Orchestrator, 
+        orchestrator2: Orchestrator
+    ) => MultiDBOrchestrator> {
+        await Orchestrator.makeDatabase(databaseName);
+
+        let repos: Record<string, Repository<PersistanceObject>> = {};
+        for (const tableName of tableNames.values()) {
+            repos[tableName] = await Repository.makeTable(tableName, databaseName)
+        }
+
+        return (pool: Pool, orchestrator1: Orchestrator, orchestrator2: Orchestrator,) => {
+            return new MultiDBOrchestrator(pool, repos, orchestrator1, orchestrator2);
+        }
+    }
+
+    @Transactional(MySQLUnitOfWork, async (error?: Error) => {
+        if (!error) return;
+        console.error(error);
+    })
+    async saveMultipleRecords(
+        mainFailRate: number = 0,
+        orch1FailRate: number = 0,
+        orch2FailRate: number = 0
+    ) {
+        await this.orchestrator1.saveOneRecordForEach(orch1FailRate);
+        for (const repo of Object.values(this.repositories)) {
+            await repo.append(this.pool, "sample", mainFailRate);
+        }
+        await this.orchestrator2.saveOneRecordForEach(orch2FailRate);
+    }
+
+    async verifyResults(): Promise<[mainCount: number, orch1Count: number, orch2Count: number]> {
+        const mainCount = await this.countAll();
+        const count1 = await this.orchestrator1.countAll();
+        const count2 = await this.orchestrator2.countAll();
+        return [mainCount, count1, count2];
     }
 }

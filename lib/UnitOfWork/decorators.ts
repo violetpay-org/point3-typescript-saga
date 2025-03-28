@@ -1,6 +1,7 @@
 import { assert } from "console";
 import { UnitOfWork } from "./main";
 import { AsyncLocalStorage } from "async_hooks";
+import { MySQLUnitOfWork } from "./mysql";
 
 export const THREAD_LOCAL = new AsyncLocalStorage();
 
@@ -68,10 +69,10 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
             // if Transactional decorator has been used above, automatically joins the transaction above.
             if (groupOfWorks) {
                 const unitOfWork = new unitOfWorkType(...args);
-                groupOfWorks.join(methodName, unitOfWork);
+                groupOfWorks.join(IdFactory(methodName), unitOfWork);
             } else {
                 groupOfWorks = GroupOfWorks.create(
-                    methodName,
+                    IdFactory(methodName),
                     unitOfWorkType,
                     ...args
                 );
@@ -94,6 +95,10 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
         };
         return descriptor;
     }
+}
+
+function IdFactory(methodName: string): WorkId {
+    return `${methodName}_${Math.floor(Math.random() * 100)}`
 }
 
 type WorkId = string; // ideal case would be scope name, which is represented by method name...?
