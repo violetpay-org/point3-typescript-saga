@@ -172,10 +172,13 @@ export class GroupOfWorks {
         if (this.isWorkEmpty) return;
 
         while (!this.isWorkEmpty) {
-            const [_, work] = this.popWork();
+            const [_, work] = this.DeepestWork;
             try {
                 await work.Rollback();
-            } catch (e) { }
+            } catch (e) {
+            } finally {
+                this.popWork();
+            }
         }
     };
 }

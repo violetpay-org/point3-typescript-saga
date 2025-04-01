@@ -270,10 +270,6 @@ class Orchestrator {
         return count;
     }
 
-    async cleanUp(): Promise<void> {
-
-    }
-
     async dropAll(): Promise<void> {
         for (const repo of Object.values(this.repositories)) {
             repo.drop(this.pool);
