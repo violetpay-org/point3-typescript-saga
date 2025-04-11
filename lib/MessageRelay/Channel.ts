@@ -51,8 +51,7 @@ export class ChannelRegistryForMessageRelay<Tx extends TxContext> {
 
 export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx extends TxContext>
     extends api.ChannelToSagaRegistry<R, Tx>
-    implements ChannelFromMessageRelay<R, Tx>
-{
+    implements ChannelFromMessageRelay<R, Tx> {
     private _repository: endpoint.AbstractMessageRepository<R, Tx>;
 
     constructor(sagaRegistry: api.SagaRegistry<Tx>, repository: endpoint.AbstractMessageRepository<R, Tx>) {
@@ -60,8 +59,6 @@ export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx e
         this._repository = repository;
     }
 
-    protected abstract beforeConsumed(message: R): Promise<void>;
-    protected abstract afterConsumed(message: R): Promise<void>;
 
     getRepository(): endpoint.ResponseRepository<R, Tx> {
         return this._repository;
@@ -69,14 +66,13 @@ export abstract class BaseLocalResponseChannel<R extends endpoint.Response, Tx e
 }
 
 export abstract class BaseRemoteCommandChannel<
-        C extends endpoint.Command<S, A>,
-        S extends saga.SagaSession,
-        A extends endpoint.CommandArguments,
-        Tx extends TxContext,
-    >
+    C extends endpoint.Command<S, A>,
+    S extends saga.SagaSession,
+    A extends endpoint.CommandArguments,
+    Tx extends TxContext,
+>
     extends endpoint.AbstractChannel<C>
-    implements ChannelFromMessageRelay<C, Tx>
-{
+    implements ChannelFromMessageRelay<C, Tx> {
     private _repository: endpoint.CommandRepository<C, Tx>;
 
     constructor(repository: endpoint.CommandRepository<C, Tx>) {

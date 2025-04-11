@@ -134,15 +134,10 @@ export abstract class ChannelToSagaRegistry<
         this._sagaRegistry = sagaRegistry;
     }
 
-    protected abstract beforeConsumed(message: M): Promise<void>;
-    protected abstract afterConsumed(message: M): Promise<void>;
-
     public async send(command: AbstractSagaMessage): Promise<void> {
         try {
             const commandWithOrigin = this.parseMessageWithOrigin(command as M);
-            await this.beforeConsumed(command as M);
             await this._sagaRegistry.consumeEvent(commandWithOrigin);
-            await this.afterConsumed(command as M);
             return;
         } catch (e) {
             if (
