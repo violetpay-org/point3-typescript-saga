@@ -18,7 +18,11 @@ export class Step<Tx extends TxContext> {
     compensationAction: CompensationSagaAction<Tx, endpoint.Command<saga.SagaSession, endpoint.CommandArguments>> | LocalCompensationSagaAction<Tx>;
     invocationAction: InvocationSagaAction<Tx, endpoint.Command<saga.SagaSession, endpoint.CommandArguments>> | LocalInvocationSagaAction<Tx>;
     retry: boolean;
-    onReplies: Array<endpoint.MessageHandlerFunc<endpoint.AbstractSagaMessage, Executable<Tx>>> = [];
+    onReplies: Array<endpoint.MessageHandlerFunc<
+        endpoint.AbstractSagaMessage, 
+        saga.SagaSession,
+        Executable<Tx>
+    >> = [];
 
     public getStepName(): string {
         return this.name;

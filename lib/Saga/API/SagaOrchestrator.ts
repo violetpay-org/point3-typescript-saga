@@ -122,7 +122,7 @@ export abstract class SagaOrchestrator<Tx extends TxContext> {
         if (sagaStep.hasReplyHandlers()) {
             for (const handler of sagaStep.onReplies) {
                 // handler error handling needed
-                const result = await handler(message);
+                const result = await handler(message, sagaSession);
                 unitOfWork.addToWork(result);
             }
         }

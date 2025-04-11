@@ -108,7 +108,11 @@ class InvokableStepBuilder<Tx extends TxContext> extends
         return this;
     }
 
-    public onReply(handler: endpoint.MessageHandlerFunc<endpoint.AbstractSagaMessage, Executable<Tx>>): stepBuilder.AfterInvokationStepBuilder<Tx> {
+    public onReply(handler: endpoint.MessageHandlerFunc<
+        endpoint.AbstractSagaMessage, 
+        session.SagaSession,
+        Executable<Tx>
+    >): stepBuilder.AfterInvokationStepBuilder<Tx> {
         this._currentStep.onReplies.push(handler);
         return this;
     }

@@ -12,7 +12,10 @@ export interface ReplyDispatchableStepBuilder<
     StepBuilderType extends IStepBuilder<Tx>,
     Tx extends TxContext
 > extends IStepBuilder<Tx> {
-    onReply(handler: endpoint.MessageHandlerFunc<endpoint.AbstractSagaMessage, Executable<Tx>>): StepBuilderType;
+    onReply(handler: endpoint.MessageHandlerFunc<
+        endpoint.AbstractSagaMessage, 
+        saga.SagaSession,
+        Executable<Tx>>): StepBuilderType;
 }
 
 export interface MustCompleteStepBuilder<Tx extends TxContext> extends IStepBuilder<Tx> {

@@ -108,7 +108,14 @@ export interface ResponseConstructor<C extends AbstractSagaMessage> {
     new (record: Record<string, string>): C;
 }
 
-export type MessageHandlerFunc<C extends AbstractSagaMessage, O> = (message: C) => Promise<O>;
+export type MessageHandlerFunc<
+    MessageType extends AbstractSagaMessage,
+    SagaSessionType extends SagaSession,
+    ReturnType
+> = (
+    message: MessageType, 
+    sagaSession?: SagaSessionType
+) => Promise<ReturnType>;
 
 export abstract class EndpointWithSuccessFailureRes<
     SuccessRes extends Response,
