@@ -1,7 +1,6 @@
 import { Pool } from "mysql2/promise";
 import { ShallowTransactional, Transactional } from "../decorators";
 import { MySQLUnitOfWork } from "./unitOfWork";
-import { Logger } from "@nestjs/common";
 import { createUnitOfWorkPool } from "./pool";
 
 const MYSQL_USER = "root";

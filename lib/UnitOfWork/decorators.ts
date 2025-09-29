@@ -83,6 +83,7 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
                 try {
                     result = await originalMethod.apply(this, methodArgs);
                     await groupOfWorks.Commit();
+                    console.log(result)
                     return result;
                 } catch (e) {
                     await groupOfWorks.Rollback();
