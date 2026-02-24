@@ -88,12 +88,13 @@ export function Transactional<U extends new (...args: any[]) => UnitOfWork<any>>
                 } catch (e) {
                     await groupOfWorks.Rollback();
                     throw e;
-                } finally {
-                    // Only cleanup thread local storage when all nested transactions are complete
-                    if (!groupOfWorks.DeepestWork[0]) {
-                        THREAD_LOCAL.disable(); // cleanup for jobs all done
-                    }
                 }
+                // finally {
+                //     // Only cleanup thread local storage when all nested transactions are complete
+                //     // if (!groupOfWorks.DeepestWork[0]) {
+                //     //     THREAD_LOCAL.disable(); // cleanup for jobs all done
+                //     }
+                // }
             });
         };
         return descriptor;
