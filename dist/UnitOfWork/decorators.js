@@ -47,7 +47,6 @@ function Transactional(unitOfWorkType, ...args) {
                 try {
                     result = await originalMethod.apply(this, methodArgs);
                     await groupOfWorks.Commit();
-                    console.log(result);
                     return result;
                 }
                 catch (e) {
